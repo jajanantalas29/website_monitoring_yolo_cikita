@@ -1,0 +1,78 @@
+📖 Panduan Lengkap Menjalankan Sistem Deteksi Wajah & IoT
+Halo Cikita! Ini adalah panduan langkah demi langkah untuk menjalankan sistem skripsi kamu (Web + AI). Ikuti pelan-pelan ya!
+
+📌 PRASYARAT (Pastikan Sudah Ada di Laptop)
+1. Laragon / XAMPP (Untuk menjalankan MySQL Database).
+2. Python 3.10 (Wajib versi 3.10 agar AI tidak error).
+3. Node.js & Composer (Untuk menjalankan website Laravel).
+
+🛠️ BAGIAN A: Setup Pertama Kali Saja
+(Langkah ini HANYA dilakukan sekali saat baru pertama kali men-download/clone dari GitHub).
+
+1. Setup Database
+Buka Laragon/XAMPP dan klik Start All (pastikan MySQL berjalan).
+
+Buka HeidiSQL / phpMyAdmin, lalu buat database baru dengan nama: website_monitoring_yolo_cikita (atau sesuai nama di file .env kamu).
+
+2. Setup Website Laravel (Terminal 1)
+1. Buka folder project website Laravel-nya.
+2. Buka Terminal (CMD) di dalam folder tersebut.
+3. Jalankan perintah ini secara berurutan:
+
+composer install
+npm install
+copy .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan storage:link
+(Catatan: Jangan lupa edit file .env dan pastikan DB_DATABASE sudah sesuai dengan nama database yang kamu buat di langkah 1).
+
+3. Setup AI Server (Terminal 2)
+1. Buka folder Model AI (tempat file Python Shafli berada).
+2. Buka Terminal (CMD) di dalam folder tersebut.
+3. Buat "wadah" virtual dan aktifkan dengan perintah ini:
+
+python -m venv venv
+venv\Scripts\activate
+(Pastikan muncul tulisan (venv) hijau di sebelah kiri CMD).
+
+4. Install semua bahan AI (Butuh koneksi internet stabil & lumayan lama):
+
+pip install -r requirements.txt
+
+🚀 BAGIAN B: Cara Menjalankan Sistem Sehari-hari
+(Langkah ini yang kamu lakukan setiap kali mau membuka web/demo skripsi).
+
+Pastikan Laragon/XAMPP (MySQL) sudah menyala, lalu siapkan 3 Jendela Terminal (CMD):
+
+🟢 Terminal 1: Menyalakan Otak AI (FastAPI)
+1. Buka CMD di folder Model AI.
+2. Ketik: venv\Scripts\activate (lalu Enter).
+3. Ketik: uvicorn api:app --host 0.0.0.0 --port 8001 --reload (lalu Enter).
+4. Biarkan terminal ini terbuka. (Note: Pertama kali jalan akan sedikit lama karena AI otomatis men-download model ArcFace ~137MB).
+
+🔵 Terminal 2: Menyalakan Website (Laravel)
+1. Buka CMD baru di folder Website Laravel.
+2. Ketik: php artisan serve --host 0.0.0.0 --port 8000 (lalu Enter).
+3. Biarkan terminal ini terbuka.
+
+🟡 Terminal 3: Menyalakan Desain (Tailwind Vite)
+1. Buka CMD baru lagi di folder Website Laravel.
+2. Ketik: npm run dev (lalu Enter).
+3. Biarkan terminal ini terbuka.
+
+🌐 CARA MENGAKSES WEBSITE
+Selesai! Sekarang sistem sudah menyala 100%.
+
+Jika buka di Laptop sendiri: Buka Google Chrome dan ketik http://localhost:8000
+Jika buka di HP / Laptop Dosen (Satu WiFi): 1. Cek IP laptopmu (misal: 192.168.1.10).
+Buka browser di HP dan ketik: http://192.168.1.10:8000
+
+⚠️ SOLUSI JIKA KAMERA HP TIDAK MUNCUL (PENTING!)
+Karena kita belum pakai HTTPS/Domain resmi, Google Chrome di HP akan memblokir kamera. Agar kamera bisa dipakai saat testing:
+
+1. Buka Chrome di HP.
+2. Ketik URL ini: chrome://flags/#unsafely-treat-insecure-origin-as-secure
+3. Masukkan link IP website-mu ke dalam kotak (misal: http://192.168.1.10:8000).
+4. Ubah tombol jadi Enabled, lalu klik Relaunch di pojok kanan bawah.
+5. Buka lagi web-nya, kamera pasti langsung bisa dipakai! Semangat skripsinya! 🔥
