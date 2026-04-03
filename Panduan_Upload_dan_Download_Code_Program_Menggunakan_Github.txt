@@ -1,0 +1,59 @@
+📝 BUKU SAKU GITHUB CIKITA
+Hai Cikita! Ini adalah panduan singkat cara mengambil (download) dan menyimpan (upload) kodingan skripsimu menggunakan GitHub.
+
+⚠️ Aturan Emas Sebelum Mulai:
+Selalu pastikan kamu membuka Terminal di VS Code atau Terminal Laragon, dan pastikan posisimu sudah berada di dalam folder project kamu (misalnya: website_monitoring_yolo_cikita atau Model AI).
+
+⬇️ BAGIAN 1: CARA MENGAMBIL KODE (DOWNLOAD)
+Ada dua kondisi saat kamu mau mengambil kode dari GitHub. Pilih sesuai keadaanmu:
+
+Kondisi A: Pertama Kali (Foldernya belum ada di laptopmu)
+Jika kamu baru mau memindahkan project ke laptopmu atau pindah laptop baru:
+
+Buka Terminal.
+
+Ketik perintah ini dan tekan Enter:
+
+Bash
+git clone https://github.com/jajanantalas29/website_monitoring_yolo_cikita.git
+(Ganti link-nya dengan link repository Model AI jika yang mau di-download adalah AI).
+
+Tunggu sampai proses download selesai 100%.
+
+Kondisi B: Update Harian (Foldernya sudah ada)
+Jika Roy baru saja memperbaiki kode, dan kamu ingin menyamakan kodingan di laptopmu dengan yang ada di GitHub:
+
+Buka Terminal di dalam folder project kamu.
+
+Ketik perintah ini dan tekan Enter:
+
+Bash
+git pull origin main
+Kodingan di laptopmu akan otomatis ter- update dengan versi terbaru!
+
+⬆️ BAGIAN 2: CARA MENYIMPAN KODE (UPLOAD)
+Jika kamu habis ngoding, merevisi, atau menambahkan file baru, dan ingin menyimpannya ke GitHub secara online:
+
+Langkah 1: Masukkan semua perubahan ke dalam kotak pengiriman
+Buka Terminal di dalam folder project, lalu ketik ini (jangan lupa ada tanda titik di belakangnya):
+
+Bash
+git add .
+
+Langkah 2: Beri label pada kotaknya
+Beri keterangan apa saja yang baru kamu kerjakan, lalu tekan Enter:
+
+Bash
+git commit -m "Menambahkan fitur abc dan memperbaiki halaman xyz"
+(Teks di dalam tanda kutip bisa kamu ganti sesuai dengan apa yang kamu kerjakan).
+
+Langkah 3: Kirim kotaknya ke GitHub!
+Ketik perintah terakhir ini dan tekan Enter:
+
+Bash
+git push origin main
+
+💡 TIPS ANTI GAGAL (WAJIB DIBACA)
+Selalu Pull sebelum Push: Jika kalian sedang mengerjakan project bersama-sama, biasakan selalu melakukan git pull origin main sebelum kamu mulai ngoding di pagi hari. Ini mencegah kodinganmu bentrok (conflict) dengan punya Roy atau Atha.
+
+Jika muncul tulisan peringatan CRLF will be replaced by LF, abaikan saja. Itu bukan error, kodenya tetap aman!
