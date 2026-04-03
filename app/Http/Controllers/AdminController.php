@@ -146,6 +146,44 @@ class AdminController extends Controller
         return view('admin.status.index', compact('pelanggan'));
     }
 
+    // Fungsi untuk memproses hasil scan RFID di halaman Status
+    public function scanStatus(Request $request)
+    {
+        // Pastikan ada UID yang terkirim
+        $request->validate([
+            'uid_kartu' => 'required|string',
+        ]);
+
+        // Cari kartu berdasarkan UID yang di-scan
+        $kartu = Kartu::where('uid_kartu', $request->uid_kartu)->first();
+
+        // Jika kartu tidak ditemukan di database
+        if (!$kartu) {
+            return redirect()->route('admin.status')->with('error', 'Kartu dengan UID ' . $request->uid_kartu . ' tidak terdaftar!');
+        }
+
+        // Ambil data pelanggan yang terhubung dengan kartu tersebut
+        $pelanggan = $kartu->pelanggan;
+
+        if (!$pelanggan) {
+            return redirect()->route('admin.status')->with('error', 'Kartu terdaftar, tapi tidak terhubung ke pelanggan mana pun.');
+        }
+
+        // Logika Toggle: Jika di luar jadi di dalam, jika di dalam jadi di luar
+        if ($pelanggan->status_ruangan === 'di_dalam') {
+            $pelanggan->status_ruangan = 'di_luar';
+            $pesan = $pelanggan->nama_lengkap . ' telah keluar ruangan.';
+        } else {
+            $pelanggan->status_ruangan = 'di_dalam';
+            $pesan = $pelanggan->nama_lengkap . ' telah masuk ruangan.';
+        }
+
+        // Simpan perubahan ke database
+        $pelanggan->save();
+
+        return redirect()->route('admin.status')->with('success', $pesan);
+    }
+
     public function show($id)
     {
         $pelanggan = Pelanggan::with('kartu')->findOrFail($id);

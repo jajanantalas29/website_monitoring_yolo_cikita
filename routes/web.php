@@ -48,4 +48,7 @@ Route::middleware([CekAdmin::class])->group(function () {
     Route::post('/admin/kartu/simpan', [AdminController::class, 'storeKartu'])->name('admin.kartu.store');
     Route::delete('/admin/kartu/{id}', [AdminController::class, 'destroyKartu'])->name('admin.kartu.destroy');
     Route::get('/admin/kartu/{id}/detail', [AdminController::class, 'showKartu'])->name('admin.kartu.show');
+
+    // untuk menangkap lemparan form dari halaman Status
+    Route::post('/admin/status/scan', [App\Http\Controllers\AdminController::class, 'scanStatus'])->name('admin.status.scan');
 });

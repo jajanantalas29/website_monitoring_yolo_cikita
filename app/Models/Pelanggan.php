@@ -18,6 +18,7 @@ class Pelanggan extends Model
         'foto_kanan',
         'foto_mulut',
         'embedding',
+        'status_ruangan',
     ];
 
     // Trik agar Laravel otomatis mengkonversi array 512 angka ke JSON saat disimpan, 
