@@ -8,6 +8,7 @@ use App\Models\Kartu;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
@@ -192,13 +193,43 @@ class AdminController extends Controller
 
     public function pelanggaran()
     {
-        // Masih data statis sesuai permintaan awal
-        $data_pelanggaran = [
-            ['id' => 1, 'nama' => 'Sukarjo Juninho', 'telepon' => '081223787653', 'foto' => 'Kiri.jpg'],
-            ['id' => 2, 'nama' => 'Fikri Wahyudi', 'telepon' => '081223787673', 'foto' => 'Kiri.jpg'],
-        ];
-        $pelanggaran = json_decode(json_encode($data_pelanggaran));
+        // Mengambil data dari tabel history_pelanggarans dan join dengan tabel pelanggans
+        // Left Join digunakan agar data "Tidak Dikenali" (tanpa pelanggan_id) tetap ikut tampil
+        $pelanggaran = DB::table('history_pelanggarans')
+            ->leftJoin('pelanggans', 'history_pelanggarans.pelanggan_id', '=', 'pelanggans.id')
+            ->select(
+                'history_pelanggarans.*', 
+                'pelanggans.nama_lengkap as nama', // Ubah nama_lengkap menjadi nama untuk view
+                'pelanggans.nomor_telepon'
+            )
+            ->orderBy('history_pelanggarans.waktu', 'desc')
+            ->get();
+
         return view('admin.pelanggaran.index', compact('pelanggaran'));
+    }
+
+    public function detailPelanggaran($id)
+    {
+        // Ambil data detail beserta data pelanggan yang berelasi (jika ada)
+        $pelanggaran = DB::table('history_pelanggarans')
+            ->leftJoin('pelanggans', 'history_pelanggarans.pelanggan_id', '=', 'pelanggans.id')
+            ->select(
+                'history_pelanggarans.*', 
+                'pelanggans.nama_lengkap as nama',
+                'pelanggans.nomor_telepon',
+                'pelanggans.foto_lurus',
+                'pelanggans.foto_kiri',
+                'pelanggans.foto_kanan',
+                'pelanggans.foto_mulut'
+            )
+            ->where('history_pelanggarans.id', $id)
+            ->first();
+
+        if (!$pelanggaran) {
+            return redirect()->route('admin.pelanggaran')->with('error', 'Data tidak ditemukan!');
+        }
+
+        return view('admin.pelanggaran.detail', compact('pelanggaran'));
     }
 
     // ==========================================
