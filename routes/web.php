@@ -42,6 +42,7 @@ Route::middleware([CekAdmin::class])->group(function () {
     Route::get('/admin/status', [AdminController::class, 'status'])->name('admin.status');
     Route::get('/admin/pelanggaran', [AdminController::class, 'pelanggaran'])->name('admin.pelanggaran');
     Route::get('/admin/pelanggaran/{id}', [App\Http\Controllers\AdminController::class, 'detailPelanggaran'])->name('admin.pelanggaran.detail');
+    Route::delete('/admin/pelanggaran/{id}', [App\Http\Controllers\AdminController::class, 'destroyPelanggaran'])->name('admin.pelanggaran.destroy');
 
     // Menu Daftar Kartu (Menggunakan AdminController)
     Route::get('/admin/kartu', [AdminController::class, 'kartu'])->name('admin.kartu');
@@ -53,3 +54,7 @@ Route::middleware([CekAdmin::class])->group(function () {
     // untuk menangkap lemparan form dari halaman Status
     Route::post('/admin/status/scan', [App\Http\Controllers\AdminController::class, 'scanStatus'])->name('admin.status.scan');
 });
+
+// --- JALUR TIKUS UNTUK AI PYTHON ---
+Route::get('/api/get-embeddings', [App\Http\Controllers\ApiController::class, 'getEmbeddings']);
+Route::post('/api/save-violation', [App\Http\Controllers\ApiController::class, 'saveViolation']);

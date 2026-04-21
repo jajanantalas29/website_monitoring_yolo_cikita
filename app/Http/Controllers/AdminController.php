@@ -34,16 +34,22 @@ class AdminController extends Controller
             'foto_mulut'    => 'required|string',
         ]);
 
-        // Helper function untuk memproses Base64 ke File
+        // Helper function untuk memproses Base64 ke File yang LEBIH AMAN
         $saveBase64 = function($base64_string, $prefix) {
             if (!$base64_string) return null;
-            
-            // Memisahkan header base64 dan datanya
-            $image_parts = explode(";base64,", $base64_string);
-            $image_base64 = base64_decode($image_parts[1]);
+
+            // Cek apakah ada koma (prefix base64)
+            if (strpos($base64_string, ',') !== false) {
+                // Jika ada prefix, pisahkan dan ambil datanya saja
+                $image_parts = explode(",", $base64_string);
+                $image_base64 = base64_decode($image_parts[1]);
+            } else {
+                // Jika murni teks sandi tanpa prefix, langsung decode
+                $image_base64 = base64_decode($base64_string);
+            }
 
             $fileName = $prefix . '_' . time() . '_' . Str::random(5) . '.jpg';
-            
+
             // Simpan ke storage/app/public/wajah
             Storage::disk('public')->put('wajah/' . $fileName, $image_base64);
 
@@ -61,11 +67,11 @@ class AdminController extends Controller
             // Kita ambil file yang baru saja disimpan untuk dikirim ke AI
             $filePath = storage_path('app/public/wajah/' . $fotoLurus);
 
-            $response = Http::timeout(20)->attach(
+            $response = Http::withoutVerifying()->timeout(60)->attach(
                 'straight', 
                 file_get_contents($filePath), 
                 'foto_lurus.jpg'
-            )->post('http://127.0.0.1:8001/api/register-face');
+            )->post('https://ai-cikita.rrlabs.web.id/api/register-face');
 
             $data = $response->json();
 
@@ -79,7 +85,7 @@ class AdminController extends Controller
                     'foto_kiri'     => $fotoKiri,
                     'foto_kanan'    => $fotoKanan,
                     'foto_mulut'    => $fotoMulut,
-                    'embedding'     => $data['embedding'], // Menyimpan 512 angka vektor
+                    'embedding'     => json_encode($data['embedding']), // Menyimpan 512 angka vektor
                 ]);
 
                 return redirect()->route('pendaftaran.proses');
@@ -101,7 +107,7 @@ class AdminController extends Controller
                 'wajah/' . $fotoLurus, 'wajah/' . $fotoKiri, 
                 'wajah/' . $fotoKanan, 'wajah/' . $fotoMulut
             ]);
-            return back()->withInput()->withErrors(['ai_error' => 'Koneksi ke AI Server (Port 8001) gagal. Pastikan server Python sudah jalan.']);
+            return back()->withInput()->withErrors(['ai_error' => 'Gagal terhubung ke AI: ' . $e->getMessage()]);
         }
     }
 
@@ -206,6 +212,26 @@ class AdminController extends Controller
             ->get();
 
         return view('admin.pelanggaran.index', compact('pelanggaran'));
+    }
+
+    public function destroyPelanggaran($id)
+    {
+        // Cari datanya di database
+        $pelanggaran = \Illuminate\Support\Facades\DB::table('history_pelanggarans')->where('id', $id)->first();
+        
+        if ($pelanggaran) {
+            // Hapus foto fisiknya dari folder storage agar memori Orange Pi tidak penuh
+            if ($pelanggaran->gambar_bukti && \Illuminate\Support\Facades\Storage::disk('public')->exists($pelanggaran->gambar_bukti)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($pelanggaran->gambar_bukti);
+            }
+            
+            // Hapus datanya dari database
+            \Illuminate\Support\Facades\DB::table('history_pelanggarans')->where('id', $id)->delete();
+            
+            return redirect()->back()->with('success', 'Data pelanggaran berhasil dihapus!');
+        }
+
+        return redirect()->back()->with('error', 'Data tidak ditemukan.');
     }
 
     public function detailPelanggaran($id)
