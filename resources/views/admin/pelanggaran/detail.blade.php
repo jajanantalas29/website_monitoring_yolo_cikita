@@ -36,54 +36,73 @@
     </aside>
 
     <main class="flex-1 flex flex-col bg-gray-50 overflow-hidden relative">
-        <header class="h-20 flex items-center justify-between px-6 md:px-8 bg-white flex-shrink-0 border-b border-gray-200">
-            <div class="flex items-center gap-4">
+        <header class="h-20 flex items-center justify-between px-4 sm:px-6 md:px-8 bg-white flex-shrink-0 border-b border-gray-200">
+            <div class="flex items-center gap-3 sm:gap-4">
                 <button id="mobile-menu-btn" class="md:hidden text-[#1f2937] hover:text-gray-600 focus:outline-none">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    <svg class="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
-                <h2 class="text-2xl md:text-3xl font-bold text-[#1f2937] tracking-tight">Detail Pelanggaran</h2>
+                <h2 class="text-xl sm:text-2xl md:text-3xl font-bold text-[#1f2937] tracking-tight">Detail Pelanggaran</h2>
             </div>
         </header>
 
-        <div class="flex-1 p-4 md:p-8 overflow-y-auto">
-            <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 md:p-8 max-w-5xl mx-auto">
+        <div class="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
+            <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 sm:p-6 md:p-8 max-w-5xl mx-auto">
                 
-                <div class="flex justify-between items-center mb-8">
-                    <h3 class="text-xl font-bold text-gray-800 border-b-2 border-[#1f2937] pb-2 inline-block">Informasi Insiden</h3>
-                    <a href="{{ route('admin.pelanggaran') }}" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition flex items-center">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4 sm:gap-0">
+                    <h3 class="text-lg sm:text-xl font-bold text-gray-800 border-b-2 border-[#1f2937] pb-2 inline-block">Informasi Insiden</h3>
+                    <a href="{{ route('admin.pelanggaran') }}" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition flex items-center self-start sm:self-auto">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                         Kembali
                     </a>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div class="space-y-6">
+                    <div class="space-y-4 sm:space-y-6">
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Nama Pelanggar</label>
                             <div class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 font-medium">
                                 {{ $pelanggaran->nama ?? $pelanggaran->status }}
                             </div>
                         </div>
+                        
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Nomor Telepon</label>
                             <div class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 font-medium">
                                 {{ $pelanggaran->nomor_telepon ?? 'Tidak Tersedia' }}
                             </div>
                         </div>
+                        
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Waktu Pelanggaran</label>
                             <div class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 font-medium flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 {{ \Carbon\Carbon::parse($pelanggaran->waktu)->format('d F Y - H:i:s') }}
                             </div>
                         </div>
+
+                        <!-- TAMBAHAN SUMBER KAMERA -->
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Sumber Kamera</label>
+                            <div class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 font-medium flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                @if($pelanggaran->kamera)
+                                    CCTV Node {{ $pelanggaran->kamera }}
+                                @else
+                                    CCTV Utama
+                                @endif
+                            </div>
+                        </div>
+                        <!-- END TAMBAHAN SUMBER KAMERA -->
+
                     </div>
 
-                    <div class="h-full">
+                    <div class="h-full flex flex-col mt-2 md:mt-0">
                         <label class="block text-sm font-bold text-gray-700 mb-2">Foto Bukti CCTV</label>
-                        <div class="w-full h-full min-h-[250px] rounded-lg border border-gray-300 bg-gray-50 flex items-center justify-center p-2 overflow-hidden">
+                        <div class="w-full h-full min-h-[200px] sm:min-h-[250px] md:min-h-[300px] rounded-lg border border-gray-300 bg-gray-50 flex items-center justify-center p-2 overflow-hidden">
                             @if($pelanggaran->gambar_bukti)
-                                <img src="{{ asset('storage/' . $pelanggaran->gambar_bukti) }}" alt="Bukti CCTV" class="max-h-64 object-contain rounded">
+                                <img src="{{ asset('storage/' . $pelanggaran->gambar_bukti) }}" alt="Bukti CCTV" class="max-w-full max-h-64 sm:max-h-72 md:max-h-full object-contain rounded">
                             @else
                                 <span class="text-gray-400 italic">Tidak ada bukti foto</span>
                             @endif
@@ -92,9 +111,9 @@
                 </div>
 
                 @if($pelanggaran->nama)
-                <div class="mt-10">
+                <div class="mt-8 sm:mt-10">
                     <label class="block text-sm font-bold text-gray-700 mb-4 border-b pb-2 tracking-tight">Data Foto Wajah Terdaftar (Database)</label>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                         
                         @php
                             $list_foto = [
@@ -106,8 +125,8 @@
                         @endphp
 
                         @foreach($list_foto as $item)
-                        <div class="border border-gray-200 rounded-xl p-3 bg-gray-50 shadow-sm flex flex-col">
-                            <span class="block text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">{{ $item['label'] }}</span>
+                        <div class="border border-gray-200 rounded-xl p-2 sm:p-3 bg-gray-50 shadow-sm flex flex-col">
+                            <span class="block text-center text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 sm:mb-3">{{ $item['label'] }}</span>
                             <div class="w-full aspect-video rounded-lg overflow-hidden bg-gray-200 border border-gray-100 flex items-center justify-center">
                                 <img src="{{ asset('storage/wajah/' . $item['file']) }}" 
                                     alt="{{ $item['label'] }}" 

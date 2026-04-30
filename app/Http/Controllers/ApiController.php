@@ -47,6 +47,9 @@ class ApiController extends Controller
             $status = $request->status;
             $pelanggan_id = $request->pelanggan_id;
             $foto_base64 = $request->foto_base64; // Foto dikirim dalam bentuk teks sandi
+            
+            // TAMBAHAN: Tangkap data nomor kamera dari Python
+            $kamera = $request->kamera; 
 
             $filename = 'violation_' . time() . '.jpg';
             
@@ -60,6 +63,7 @@ class ApiController extends Controller
                 'waktu' => $waktu,
                 'gambar_bukti' => 'violation_images/' . $filename,
                 'status' => $status,
+                'kamera' => $kamera ?? null, // TAMBAHAN: Masukkan ke kolom kamera (jika kosong, isi dengan null)
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
