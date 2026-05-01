@@ -88,51 +88,69 @@
                     </div>
 
                     <div class="mb-8">
-                        <label class="block text-[#1f2937] font-bold text-lg md:text-xl mb-2">Foto Wajah</label>
-                        <div class="border-2 border-gray-300 rounded-xl p-3 md:p-4 grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 bg-white">
+                        <label class="block text-[#1f2937] font-bold text-lg md:text-xl mb-2">Foto Wajah Terdaftar</label>
+                        
+                        <!-- PERUBAHAN GRID: Menjadi 5 Kolom di layar besar -->
+                        <div class="border-2 border-gray-300 rounded-xl p-3 md:p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 bg-white">
                             
+                            <!-- 1. Foto Lurus -->
                             <div class="aspect-[3/4] bg-[#242e3a] rounded-lg flex flex-col items-center justify-end pb-3 md:pb-4 relative overflow-hidden group shadow-inner border border-gray-600">
                                 @if($pelanggan->foto_lurus)
                                     <img src="{{ asset('storage/wajah/'.$pelanggan->foto_lurus) }}" class="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:opacity-100 transition duration-300">
                                 @else
                                     <div class="absolute inset-0 flex items-center justify-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
                                     </div>
                                 @endif
-                                <span class="relative text-white font-bold text-xs md:text-sm bg-black/60 px-2 py-0.5 rounded mt-auto z-10 tracking-wide">Lurus</span>
+                                <span class="relative text-white font-bold text-[10px] md:text-xs bg-black/60 px-2 py-0.5 rounded mt-auto z-10 tracking-wide text-center">Lurus</span>
                             </div>
 
+                            <!-- 2. Foto Kiri -->
                             <div class="aspect-[3/4] bg-[#242e3a] rounded-lg flex flex-col items-center justify-end pb-3 md:pb-4 relative overflow-hidden group shadow-inner border border-gray-600">
                                 @if($pelanggan->foto_kiri)
                                     <img src="{{ asset('storage/wajah/'.$pelanggan->foto_kiri) }}" class="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:opacity-100 transition duration-300">
                                 @else
                                     <div class="absolute inset-0 flex items-center justify-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
                                     </div>
                                 @endif
-                                <span class="relative text-white font-bold text-xs md:text-sm bg-black/60 px-2 py-0.5 rounded mt-auto z-10 tracking-wide">Tengok Kiri</span>
+                                <span class="relative text-white font-bold text-[10px] md:text-xs bg-black/60 px-2 py-0.5 rounded mt-auto z-10 tracking-wide text-center">Tengok Kiri</span>
                             </div>
 
+                            <!-- 3. Foto Kanan -->
                             <div class="aspect-[3/4] bg-[#242e3a] rounded-lg flex flex-col items-center justify-end pb-3 md:pb-4 relative overflow-hidden group shadow-inner border border-gray-600">
                                 @if($pelanggan->foto_kanan)
                                     <img src="{{ asset('storage/wajah/'.$pelanggan->foto_kanan) }}" class="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:opacity-100 transition duration-300">
                                 @else
                                     <div class="absolute inset-0 flex items-center justify-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
                                     </div>
                                 @endif
-                                <span class="relative text-white font-bold text-xs md:text-sm bg-black/60 px-2 py-0.5 rounded mt-auto z-10 tracking-wide">Tengok Kanan</span>
+                                <span class="relative text-white font-bold text-[10px] md:text-xs bg-black/60 px-2 py-0.5 rounded mt-auto z-10 tracking-wide text-center">Tengok Kanan</span>
                             </div>
 
+                            <!-- 4. Foto Mulut -->
                             <div class="aspect-[3/4] bg-[#242e3a] rounded-lg flex flex-col items-center justify-end pb-3 md:pb-4 relative overflow-hidden group shadow-inner border border-gray-600">
                                 @if($pelanggan->foto_mulut)
                                     <img src="{{ asset('storage/wajah/'.$pelanggan->foto_mulut) }}" class="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:opacity-100 transition duration-300">
                                 @else
                                     <div class="absolute inset-0 flex items-center justify-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
                                     </div>
                                 @endif
-                                <span class="relative text-white font-bold text-xs md:text-sm bg-black/60 px-2 py-0.5 rounded mt-auto z-10 tracking-wide">Mulut Terbuka</span>
+                                <span class="relative text-white font-bold text-[10px] md:text-xs bg-black/60 px-2 py-0.5 rounded mt-auto z-10 tracking-wide text-center">Mulut Terbuka</span>
+                            </div>
+
+                            <!-- 5. Foto Menunduk (TAMBAHAN BARU) -->
+                            <div class="aspect-[3/4] bg-[#242e3a] rounded-lg flex flex-col items-center justify-end pb-3 md:pb-4 relative overflow-hidden group shadow-inner border border-gray-600">
+                                @if(isset($pelanggan->foto_menunduk) && $pelanggan->foto_menunduk)
+                                    <img src="{{ asset('storage/wajah/'.$pelanggan->foto_menunduk) }}" class="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:opacity-100 transition duration-300">
+                                @else
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                                    </div>
+                                @endif
+                                <span class="relative text-white font-bold text-[10px] md:text-xs bg-black/60 px-2 py-0.5 rounded mt-auto z-10 tracking-wide text-center">Menunduk</span>
                             </div>
 
                         </div>

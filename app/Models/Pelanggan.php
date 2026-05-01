@@ -17,6 +17,7 @@ class Pelanggan extends Model
         'foto_kiri',
         'foto_kanan',
         'foto_mulut',
+        'foto_menunduk',
         'embedding',
         'status_ruangan',
     ];

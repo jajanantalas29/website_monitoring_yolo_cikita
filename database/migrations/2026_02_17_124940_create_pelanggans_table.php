@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('foto_kiri')->nullable();
             $table->string('foto_kanan')->nullable();
             $table->string('foto_mulut')->nullable();
+            $table->string('foto_menunduk')->nullable(); // TAMBAHAN: Slot untuk foto angle atas
             $table->timestamps();
         });
     }

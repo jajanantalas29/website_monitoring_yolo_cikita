@@ -68,7 +68,7 @@
 
     <main class="flex-1 flex flex-col bg-white overflow-hidden relative">
         
-        <header class="h-20 flex items-center justify-between px-6 md:px-8 bg-white flex-shrink-0">
+        <header class="h-20 flex items-center justify-between px-6 md:px-8 bg-white flex-shrink-0 border-b border-gray-100">
             <div class="flex items-center gap-4">
                 <button id="mobile-menu-btn" class="md:hidden text-[#1f2937] hover:text-gray-600 focus:outline-none">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -83,68 +83,48 @@
             </div>
         </header>
 
-        <div class="flex-1 p-4 md:p-8 pt-2 overflow-y-auto">
-            <div class="border-2 border-gray-300 rounded-2xl p-5 md:p-8 bg-white max-w-6xl mx-auto md:mx-0">
+        <div class="flex-1 p-4 md:p-8 pt-6 overflow-y-auto bg-gray-50">
+            <div class="border border-gray-200 shadow-sm rounded-2xl p-5 md:p-8 bg-white max-w-6xl mx-auto md:mx-0">
                 
                 <div class="mb-5 md:mb-6">
                     <label class="block text-[#1f2937] font-bold text-lg md:text-xl mb-2">Nama</label>
                     <input type="text" value="{{ $pelanggan->nama_lengkap }}" readonly
-                           class="w-full border-2 border-gray-400 rounded-lg px-4 py-2.5 md:py-3 text-base md:text-lg focus:outline-none bg-gray-50 text-gray-800 font-medium cursor-default">
+                           class="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 md:py-3 text-base md:text-lg focus:outline-none bg-gray-50 text-gray-800 font-medium cursor-default">
                 </div>
 
                 <div class="mb-6 md:mb-8">
                     <label class="block text-[#1f2937] font-bold text-lg md:text-xl mb-2">Nomor Telepon</label>
                     <input type="text" value="{{ $pelanggan->nomor_telepon }}" readonly
-                           class="w-full border-2 border-gray-400 rounded-lg px-4 py-2.5 md:py-3 text-base md:text-lg focus:outline-none bg-gray-50 text-gray-800 font-medium cursor-default">
+                           class="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 md:py-3 text-base md:text-lg focus:outline-none bg-gray-50 text-gray-800 font-medium cursor-default">
                 </div>
 
                 <div class="mb-8">
                     <label class="block text-[#1f2937] font-bold text-lg md:text-xl mb-2">Foto Wajah</label>
-                    <div class="border-2 border-gray-300 rounded-xl p-3 md:p-4 grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 bg-white">
+                    <!-- Perbaikan Grid: Menggunakan 5 Kolom untuk menampung semua foto -->
+                    <div class="border-2 border-gray-300 rounded-xl p-3 md:p-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 bg-gray-50">
                         
-                        <div class="aspect-[3/4] bg-[#242e3a] rounded-lg flex flex-col items-center justify-end pb-3 md:pb-4 relative overflow-hidden shadow-inner border border-gray-600 group">
-                            @if($pelanggan->foto_lurus)
-                                <img src="{{ asset('storage/wajah/'.$pelanggan->foto_lurus) }}" class="absolute inset-0 w-full h-full object-cover">
-                            @else
-                                <div class="absolute inset-0 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
-                                </div>
-                            @endif
-                            <span class="relative text-white font-bold bg-black/60 px-2 py-0.5 rounded text-xs md:text-sm z-10 tracking-wide">Lurus</span>
-                        </div>
+                        @php
+                            $fotos = [
+                                ['label' => 'Lurus', 'file' => $pelanggan->foto_lurus ?? null],
+                                ['label' => 'Kiri', 'file' => $pelanggan->foto_kiri ?? null],
+                                ['label' => 'Kanan', 'file' => $pelanggan->foto_kanan ?? null],
+                                ['label' => 'Mulut', 'file' => $pelanggan->foto_mulut ?? null],
+                                ['label' => 'Menunduk', 'file' => $pelanggan->foto_menunduk ?? null],
+                            ];
+                        @endphp
 
-                        <div class="aspect-[3/4] bg-[#242e3a] rounded-lg flex flex-col items-center justify-end pb-3 md:pb-4 relative overflow-hidden shadow-inner border border-gray-600 group">
-                            @if($pelanggan->foto_kiri)
-                                <img src="{{ asset('storage/wajah/'.$pelanggan->foto_kiri) }}" class="absolute inset-0 w-full h-full object-cover">
-                            @else
-                                <div class="absolute inset-0 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
-                                </div>
-                            @endif
-                            <span class="relative text-white font-bold bg-black/60 px-2 py-0.5 rounded text-xs md:text-sm z-10 tracking-wide">Tengok Kiri</span>
-                        </div>
-
-                        <div class="aspect-[3/4] bg-[#242e3a] rounded-lg flex flex-col items-center justify-end pb-3 md:pb-4 relative overflow-hidden shadow-inner border border-gray-600 group">
-                            @if($pelanggan->foto_kanan)
-                                <img src="{{ asset('storage/wajah/'.$pelanggan->foto_kanan) }}" class="absolute inset-0 w-full h-full object-cover">
-                            @else
-                                <div class="absolute inset-0 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
-                                </div>
-                            @endif
-                            <span class="relative text-white font-bold bg-black/60 px-2 py-0.5 rounded text-xs md:text-sm z-10 tracking-wide">Tengok Kanan</span>
-                        </div>
-
-                        <div class="aspect-[3/4] bg-[#242e3a] rounded-lg flex flex-col items-center justify-end pb-3 md:pb-4 relative overflow-hidden shadow-inner border border-gray-600 group">
-                            @if($pelanggan->foto_mulut)
-                                <img src="{{ asset('storage/wajah/'.$pelanggan->foto_mulut) }}" class="absolute inset-0 w-full h-full object-cover">
-                            @else
-                                <div class="absolute inset-0 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 text-white opacity-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
-                                </div>
-                            @endif
-                            <span class="relative text-white font-bold bg-black/60 px-2 py-0.5 rounded text-xs md:text-sm z-10 tracking-wide">Mulut Terbuka</span>
-                        </div>
+                        @foreach($fotos as $foto)
+                            <div class="aspect-[3/4] bg-[#242e3a] rounded-lg flex flex-col items-center justify-end pb-3 md:pb-4 relative overflow-hidden shadow-inner border border-gray-600 group">
+                                @if($foto['file'])
+                                    <img src="{{ asset('storage/wajah/'.$foto['file']) }}" class="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition duration-300">
+                                @else
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white opacity-80" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                                    </div>
+                                @endif
+                                <span class="relative text-white font-bold bg-black/60 px-2 py-0.5 rounded text-[10px] md:text-xs z-10 tracking-wide text-center">{{ $foto['label'] }}</span>
+                            </div>
+                        @endforeach
 
                     </div>
                 </div>

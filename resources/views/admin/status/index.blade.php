@@ -126,7 +126,8 @@
                                     {{ $p->foto_lurus ? 'lurus.jpg, ' : '' }}
                                     {{ $p->foto_kiri ? 'kiri.jpg, ' : '' }}
                                     {{ $p->foto_kanan ? 'kanan.jpg, ' : '' }}
-                                    {{ $p->foto_mulut ? 'mulut.jpg' : '' }}
+                                    {{ $p->foto_mulut ? 'mulut.jpg, ' : '' }}
+                                    {{ $p->foto_menunduk ? 'menunduk.jpg' : '' }}
                                 </td>
                                 <td class="p-4 py-4 md:py-5 text-center">
                                     <div class="flex items-center justify-center space-x-3">
@@ -172,7 +173,8 @@
                                     {{ $p->foto_lurus ? 'lurus.jpg, ' : '' }}
                                     {{ $p->foto_kiri ? 'kiri.jpg, ' : '' }}
                                     {{ $p->foto_kanan ? 'kanan.jpg, ' : '' }}
-                                    {{ $p->foto_mulut ? 'mulut.jpg' : '' }}
+                                    {{ $p->foto_mulut ? 'mulut.jpg, ' : '' }}
+                                    {{ $p->foto_menunduk ? 'menunduk.jpg' : '' }}
                                 </td>
                                 <td class="p-4 py-4 md:py-5 text-center">
                                     <div class="flex items-center justify-center space-x-3">

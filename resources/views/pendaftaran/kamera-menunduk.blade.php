@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ambil Foto Mulut - Monitoring Pameran</title>
+    <title>Ambil Foto Menunduk - Monitoring Pameran</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/face-api.js/dist/face-api.min.js"></script>
@@ -39,8 +39,9 @@
 
             <div class="mt-6 text-center">
                 <p class="text-[#1f2937] text-base sm:text-xl font-bold tracking-tight px-2">
-                    Pastikan mulut anda terbuka
+                    Pastikan wajah anda sedikit menunduk
                 </p>
+                <p class="text-gray-500 text-sm mt-1">Simulasi CCTV dari sudut atas</p>
             </div>
         </div>
 
@@ -91,7 +92,7 @@
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
                 .then(stream => {
                     video.srcObject = stream;
-                    statusText.innerText = "Silahkan BUKA MULUT anda...";
+                    statusText.innerText = "Silakan TUNDUKKAN wajah anda...";
                 })
                 .catch(err => {
                     statusText.innerText = "Kamera Error";
@@ -100,8 +101,8 @@
         }
 
         video.addEventListener('play', () => {
-            // Sapaan dan Instruksi Awal untuk Mulut
-            setTimeout(() => { speakText("Sempurna. Terakhir, silakan menghadap lurus dan buka mulut anda."); }, 1000);
+            // Sapaan dan Instruksi Awal untuk Menunduk
+            setTimeout(() => { speakText("Selanjutnya, silakan menundukkan wajah anda sedikit ke bawah."); }, 1000);
 
             setInterval(async () => {
                 if (isCaptured) return;
@@ -111,32 +112,43 @@
                 if (detections.length > 0) {
                     const landmarks = detections[0].landmarks;
                     
-                    // Titik Bibir Dalam
-                    const mouthTop = landmarks.positions[62];
-                    const mouthBottom = landmarks.positions[66];
+                    // Ambil titik koordinat kunci
+                    const leftEye = landmarks.positions[36];
+                    const rightEye = landmarks.positions[45];
+                    const noseTip = landmarks.positions[30];
+                    const chin = landmarks.positions[8];
 
-                    // Hitung Jarak Vertikal Bibir
-                    const mouthOpening = Math.abs(mouthBottom.y - mouthTop.y);
+                    // Cari titik tengah antara kedua mata
+                    const eyeCenterY = (leftEye.y + rightEye.y) / 2;
 
-                    // Threshold: Jarak > 15 pixel dianggap terbuka
-                    if (mouthOpening > 15) { 
+                    // Hitung jarak vertikal (Mata ke Hidung vs Hidung ke Dagu)
+                    const upperFaceDist = Math.abs(noseTip.y - eyeCenterY);
+                    const lowerFaceDist = Math.abs(chin.y - noseTip.y);
+
+                    // Rumus Deteksi Menunduk: 
+                    // Saat normal, rasio Upper dan Lower mendekati 1. 
+                    // Saat menunduk, Upper terlihat jauh lebih panjang dibanding Lower (rasio naik).
+                    const lookDownRatio = upperFaceDist / lowerFaceDist;
+
+                    // Threshold: Jika rasio lebih dari 1.3, berarti dia sedang menunduk
+                    if (lookDownRatio > 1.3) { 
                         
-                        statusText.innerText = "Mulut Terbuka! Tahan...";
+                        statusText.innerText = "Posisi Pas! Tahan...";
                         statusText.classList.remove('bg-black', 'bg-red-500');
                         statusText.classList.add('bg-green-600');
                         
-                        speakText("Mulut terbuka. Tahan.");
+                        speakText("Posisi menunduk pas. Tahan.");
 
                         setTimeout(() => {
                             if (!isCaptured) { takeSnapshot(); }
                         }, 1200);
 
                     } else {
-                         statusText.innerText = "Buka mulut lebih lebar...";
+                         statusText.innerText = "Tundukkan wajah sedikit lagi...";
                          statusText.classList.remove('bg-green-600');
                          statusText.classList.add('bg-black');
                          
-                         speakText("Buka mulut lebih lebar.");
+                         speakText("Tundukkan wajah sedikit lagi.");
                     }
 
                 } else {
@@ -153,7 +165,7 @@
             isCaptured = true;
             
             statusText.innerText = "Menyimpan Data...";
-            speakText("Menyimpan foto mulut dan memproses pendaftaran.");
+            speakText("Menyimpan foto angle atas dan memproses pendaftaran.");
             
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
@@ -164,13 +176,13 @@
 
             const dataURL = canvas.toDataURL('image/jpeg');
 
-            // SIMPAN DATA MULUT
-            localStorage.setItem('temp_foto_mulut', dataURL);
+            // SIMPAN DATA MENUNDUK (Beda nama key dengan halaman mulut)
+            localStorage.setItem('temp_foto_menunduk', dataURL);
 
-            // SELESAI -> LANJUT KE TAHAP MENUNDUK
+            // SELESAI -> KEMBALI KE FORM UTAMA
             setTimeout(() => {
-                window.location.href = "{{ route('pendaftaran.kamera-menunduk') }}";
-            }, 2500);
+                window.location.href = "{{ route('pendaftaran.form') }}";
+            }, 2500); 
         }
 
         btnCapture.addEventListener('click', () => {

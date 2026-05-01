@@ -81,24 +81,32 @@
                 </div>
 
                 <div class="mb-8">
-                    <label class="block font-bold text-lg md:text-xl text-[#1f2937] mb-2">Foto Wajah</label>
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 border-2 border-gray-300 rounded-xl p-3 md:p-5">
+                    <label class="block font-bold text-lg md:text-xl text-[#1f2937] mb-2">Foto Wajah Terdaftar</label>
+                    <!-- Menggunakan grid 5 kolom untuk layar besar -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 border-2 border-gray-300 rounded-xl p-3 md:p-5 bg-white">
                         @php
+                            // Mengubah array menjadi format key-value agar bisa menampilkan label nama posenya
                             $fotos = [
-                                $kartu->pelanggan->foto_lurus ?? null,
-                                $kartu->pelanggan->foto_kiri ?? null,
-                                $kartu->pelanggan->foto_kanan ?? null,
-                                $kartu->pelanggan->foto_mulut ?? null,
+                                ['label' => 'Lurus', 'file' => $kartu->pelanggan->foto_lurus ?? null],
+                                ['label' => 'Kiri', 'file' => $kartu->pelanggan->foto_kiri ?? null],
+                                ['label' => 'Kanan', 'file' => $kartu->pelanggan->foto_kanan ?? null],
+                                ['label' => 'Mulut', 'file' => $kartu->pelanggan->foto_mulut ?? null],
+                                ['label' => 'Menunduk', 'file' => $kartu->pelanggan->foto_menunduk ?? null],
                             ];
                         @endphp
 
                         @foreach($fotos as $foto)
-                            <div class="bg-[#242e3a] rounded-xl aspect-[3/4] flex items-center justify-center overflow-hidden border border-gray-600 shadow-inner relative">
-                                @if($foto)
-                                    <img src="{{ asset('storage/wajah/' . $foto) }}" class="w-full h-full object-cover">
+                            <div class="bg-[#242e3a] rounded-xl aspect-[3/4] flex flex-col items-center justify-end pb-3 md:pb-4 overflow-hidden border border-gray-600 shadow-inner relative group">
+                                @if($foto['file'])
+                                    <img src="{{ asset('storage/wajah/' . $foto['file']) }}" class="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:opacity-100 transition duration-300">
                                 @else
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" class="w-12 h-12 md:w-16 md:h-16 opacity-90"><path fill-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" clip-rule="evenodd" /></svg>
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <!-- Icon User Default jika foto kosong -->
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-10 h-10 md:w-12 md:h-12 text-white opacity-90"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                                    </div>
                                 @endif
+                                <!-- Label Teks -->
+                                <span class="relative text-white font-bold text-[10px] md:text-xs bg-black/60 px-2 py-0.5 rounded mt-auto z-10 tracking-wide text-center">{{ $foto['label'] }}</span>
                             </div>
                         @endforeach
                     </div>

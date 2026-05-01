@@ -32,6 +32,7 @@ class AdminController extends Controller
             'foto_kiri'     => 'required|string',
             'foto_kanan'    => 'required|string',
             'foto_mulut'    => 'required|string',
+            'foto_menunduk' => 'required|string', // TAMBAHAN BARU
         ]);
 
         // Helper function untuk memproses Base64 ke File yang LEBIH AMAN
@@ -57,21 +58,22 @@ class AdminController extends Controller
         };
 
         // 2. Proses Konversi dan Penyimpanan Foto Lokal
-        $fotoLurus = $saveBase64($request->foto_lurus, 'lurus');
-        $fotoKiri  = $saveBase64($request->foto_kiri, 'kiri');
-        $fotoKanan = $saveBase64($request->foto_kanan, 'kanan');
-        $fotoMulut = $saveBase64($request->foto_mulut, 'mulut');
+        $fotoLurus   = $saveBase64($request->foto_lurus, 'lurus');
+        $fotoKiri    = $saveBase64($request->foto_kiri, 'kiri');
+        $fotoKanan   = $saveBase64($request->foto_kanan, 'kanan');
+        $fotoMulut   = $saveBase64($request->foto_mulut, 'mulut');
+        $fotoMenunduk = $saveBase64($request->foto_menunduk, 'menunduk'); // TAMBAHAN BARU
 
         // 3. PROSES INTEGRASI KE AI SERVER (Port 8001)
         try {
-            // Kita ambil file yang baru saja disimpan untuk dikirim ke AI
-            $filePath = storage_path('app/public/wajah/' . $fotoLurus);
-
-            $response = Http::withoutVerifying()->timeout(60)->attach(
-                'straight', 
-                file_get_contents($filePath), 
-                'foto_lurus.jpg'
-            )->post('https://ai-cikita.rrlabs.web.id/api/register-face');
+            // Mengirim KELIMA foto sekaligus ke Python AI
+            $response = Http::withoutVerifying()->timeout(60)
+                ->attach('straight', file_get_contents(storage_path('app/public/wajah/' . $fotoLurus)), 'lurus.jpg')
+                ->attach('kiri', file_get_contents(storage_path('app/public/wajah/' . $fotoKiri)), 'kiri.jpg')
+                ->attach('kanan', file_get_contents(storage_path('app/public/wajah/' . $fotoKanan)), 'kanan.jpg')
+                ->attach('mulut', file_get_contents(storage_path('app/public/wajah/' . $fotoMulut)), 'mulut.jpg')
+                ->attach('menunduk', file_get_contents(storage_path('app/public/wajah/' . $fotoMenunduk)), 'menunduk.jpg')
+                ->post('https://ai-cikita.rrlabs.web.id/api/register-face');
 
             $data = $response->json();
 
@@ -85,16 +87,18 @@ class AdminController extends Controller
                     'foto_kiri'     => $fotoKiri,
                     'foto_kanan'    => $fotoKanan,
                     'foto_mulut'    => $fotoMulut,
+                    'foto_menunduk' => $fotoMenunduk, // TAMBAHAN BARU
                     'embedding'     => json_encode($data['embedding']), // Menyimpan 512 angka vektor
                 ]);
 
                 return redirect()->route('pendaftaran.proses');
             
             } else {
-                // Hapus file jika AI gagal mendeteksi wajah
+                // Hapus file jika AI gagal mendeteksi wajah (termasuk menunduk)
                 Storage::disk('public')->delete([
                     'wajah/' . $fotoLurus, 'wajah/' . $fotoKiri, 
-                    'wajah/' . $fotoKanan, 'wajah/' . $fotoMulut
+                    'wajah/' . $fotoKanan, 'wajah/' . $fotoMulut,
+                    'wajah/' . $fotoMenunduk // TAMBAHAN BARU
                 ]);
                 
                 $msg = $data['message'] ?? 'Wajah tidak terdeteksi. Pastikan pencahayaan cukup.';
@@ -102,10 +106,11 @@ class AdminController extends Controller
             }
 
         } catch (\Exception $e) {
-            // Hapus file jika server AI mati
+            // Hapus file jika server AI mati (termasuk menunduk)
             Storage::disk('public')->delete([
                 'wajah/' . $fotoLurus, 'wajah/' . $fotoKiri, 
-                'wajah/' . $fotoKanan, 'wajah/' . $fotoMulut
+                'wajah/' . $fotoKanan, 'wajah/' . $fotoMulut,
+                'wajah/' . $fotoMenunduk // TAMBAHAN BARU
             ]);
             return back()->withInput()->withErrors(['ai_error' => 'Gagal terhubung ke AI: ' . $e->getMessage()]);
         }
@@ -137,7 +142,8 @@ class AdminController extends Controller
             'wajah/' . $pelanggan->foto_lurus,
             'wajah/' . $pelanggan->foto_kiri,
             'wajah/' . $pelanggan->foto_kanan,
-            'wajah/' . $pelanggan->foto_mulut
+            'wajah/' . $pelanggan->foto_mulut,
+            'wajah/' . $pelanggan->foto_menunduk // TAMBAHAN BARU
         ]);
         $pelanggan->delete();
         return redirect()->route('admin.pelanggan')->with('success', 'Data dihapus!');
@@ -246,7 +252,8 @@ class AdminController extends Controller
                 'pelanggans.foto_lurus',
                 'pelanggans.foto_kiri',
                 'pelanggans.foto_kanan',
-                'pelanggans.foto_mulut'
+                'pelanggans.foto_mulut',
+                'pelanggans.foto_menunduk' // TAMBAHAN BARU
             )
             ->where('history_pelanggarans.id', $id)
             ->first();

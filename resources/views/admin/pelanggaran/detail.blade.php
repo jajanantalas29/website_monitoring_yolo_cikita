@@ -50,7 +50,7 @@
                 
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4 sm:gap-0">
                     <h3 class="text-lg sm:text-xl font-bold text-gray-800 border-b-2 border-[#1f2937] pb-2 inline-block">Informasi Insiden</h3>
-                    <a href="{{ route('admin.pelanggaran') }}" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition flex items-center self-start sm:self-auto">
+                    <a href="{{ route('admin.pelanggaran') }}" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition flex items-center self-start sm:self-auto shadow-sm border border-gray-200">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                         Kembali
                     </a>
@@ -87,10 +87,10 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
-                                @if($pelanggaran->kamera)
+                                @if(isset($pelanggaran->kamera) && $pelanggaran->kamera)
                                     CCTV Node {{ $pelanggaran->kamera }}
                                 @else
-                                    CCTV Utama
+                                    CCTV Utama (Default)
                                 @endif
                             </div>
                         </div>
@@ -100,7 +100,7 @@
 
                     <div class="h-full flex flex-col mt-2 md:mt-0">
                         <label class="block text-sm font-bold text-gray-700 mb-2">Foto Bukti CCTV</label>
-                        <div class="w-full h-full min-h-[200px] sm:min-h-[250px] md:min-h-[300px] rounded-lg border border-gray-300 bg-gray-50 flex items-center justify-center p-2 overflow-hidden">
+                        <div class="w-full h-full min-h-[200px] sm:min-h-[250px] md:min-h-[300px] rounded-lg border border-gray-300 bg-gray-50 flex items-center justify-center p-2 overflow-hidden shadow-sm">
                             @if($pelanggaran->gambar_bukti)
                                 <img src="{{ asset('storage/' . $pelanggaran->gambar_bukti) }}" alt="Bukti CCTV" class="max-w-full max-h-64 sm:max-h-72 md:max-h-full object-contain rounded">
                             @else
@@ -110,27 +110,34 @@
                     </div>
                 </div>
 
-                @if($pelanggaran->nama)
+                @if(isset($pelanggaran->nama))
                 <div class="mt-8 sm:mt-10">
                     <label class="block text-sm font-bold text-gray-700 mb-4 border-b pb-2 tracking-tight">Data Foto Wajah Terdaftar (Database)</label>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                    
+                    <!-- Perbaikan Grid: 5 Kolom -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
                         
                         @php
                             $list_foto = [
-                                ['label' => 'Lurus', 'file' => $pelanggaran->foto_lurus],
-                                ['label' => 'Kiri', 'file' => $pelanggaran->foto_kiri],
-                                ['label' => 'Kanan', 'file' => $pelanggaran->foto_kanan],
-                                ['label' => 'Mulut', 'file' => $pelanggaran->foto_mulut],
+                                ['label' => 'Lurus', 'file' => $pelanggaran->foto_lurus ?? null],
+                                ['label' => 'Kiri', 'file' => $pelanggaran->foto_kiri ?? null],
+                                ['label' => 'Kanan', 'file' => $pelanggaran->foto_kanan ?? null],
+                                ['label' => 'Mulut', 'file' => $pelanggaran->foto_mulut ?? null],
+                                ['label' => 'Menunduk', 'file' => $pelanggaran->foto_menunduk ?? null],
                             ];
                         @endphp
 
                         @foreach($list_foto as $item)
-                        <div class="border border-gray-200 rounded-xl p-2 sm:p-3 bg-gray-50 shadow-sm flex flex-col">
-                            <span class="block text-center text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 sm:mb-3">{{ $item['label'] }}</span>
-                            <div class="w-full aspect-video rounded-lg overflow-hidden bg-gray-200 border border-gray-100 flex items-center justify-center">
-                                <img src="{{ asset('storage/wajah/' . $item['file']) }}" 
-                                    alt="{{ $item['label'] }}" 
-                                    class="max-w-full max-h-full object-contain shadow-inner">
+                        <div class="border border-gray-200 rounded-xl p-2 sm:p-3 bg-gray-50 shadow-sm flex flex-col h-full">
+                            <span class="block text-center text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">{{ $item['label'] }}</span>
+                            <div class="w-full aspect-[3/4] rounded-lg overflow-hidden bg-[#242e3a] border border-gray-600 flex items-center justify-center shadow-inner relative group">
+                                @if($item['file'])
+                                    <img src="{{ asset('storage/wajah/' . $item['file']) }}" 
+                                         alt="{{ $item['label'] }}" 
+                                         class="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition duration-300">
+                                @else
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white opacity-80" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                                @endif
                             </div>
                         </div>
                         @endforeach
