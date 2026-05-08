@@ -1,0 +1,96 @@
+1. Flowchart Pendaftaran Wajah
+Alur ini lebih spesifik menjelaskan peran Web Frontend, Backend Laravel, dan AI Server.
+
+[ MULAI ]
+⬇️
+[ Tahap 1: Kamera Frontend ] Kamera laptop/HP merekam 5 pose wajah dan langsung mengubahnya menjadi teks sandi (Base64) di browser, user mengisi data diri pelanggan di web. 
+⬇️
+[ Tahap 2: Pengiriman ke Laravel ] Teks sandi Base64 tersebut dikirim ke Backend Laravel (melalui tombol Submit).
+⬇️
+[ Tahap 3: Pembuatan File Fisik ] Fungsi store di Laravel mengubah kembali sandi Base64 tersebut menjadi 5 file foto fisik (.jpg) dan menyimpannya sementara di folder storage PC Server.
+⬇️
+[ Tahap 4: Request ke AI ] Laravel mengirim kelima foto .jpg tersebut ke AI Python (https://ai-cikita.rrlabs.web.id/register-face).
+⬇️
+[ Tahap 5: Vektorisasi ] AI DeepFace memproses foto, mengekstrak wajah menjadi 512 angka (Vektor Embedding), dan mengirimkannya kembali ke Laravel.
+⬇️
+[ Tahap 6: Simpan Database ] Laravel menyimpan data diri, foto fisik, dan angka vektor tersebut ke tabel pelanggans.
+⬇️
+[ SELESAI ]
+
+
+
+2. Flowchart Akses Ruangan
+Karena ApiController hanya memberikan data pelanggan yang ada di_dalam, kita wajib membuat flowchart ini agar paham syarat utama AI bekerja.
+
+[ MULAI ]
+⬇️
+[ Tahap 1: Pelanggan Datang ] Admin membuka dashboard status, Pelanggan datang ke lokasi dan menempelkan kartunya ke alat pembaca RFID.
+⬇️
+[ Tahap 2: Kirim UID ] Kode UID kartu terkirim ke halaman Web Laravel (menu Status).
+⬇️
+[ Tahap 3: Validasi Database (scanStatus) ] Laravel mencari apakah UID tersebut ada di tabel kartus dan terhubung dengan pelanggan.
+
+👉 TIDAK ADA: Muncul error "Kartu tidak terdaftar".
+
+👉 ADA: Lanjut ke tahap berikutnya.
+⬇️
+[ Tahap 4: Toggle Status Hadir ] Laravel mengecek status ruangan pelanggan saat ini:
+
+Jika sebelumnya di_luar ➡️ Diubah menjadi di_dalam (Pelanggan Masuk).
+
+Jika sebelumnya di_dalam ➡️ Diubah menjadi di_luar (Pelanggan Keluar).
+⬇️
+[ SELESAI ] (Catatan: Hanya pelanggan berstatus di_dalam yang datanya akan dikirim ke AI).
+
+
+
+3. Flowchart Pelanggaran
+Ini adalah penyempurnaan alur saat ESP32 mendeteksi ada orang yang melanggar jarak (kurang dari 20cm).
+
+[ MULAI: Sinyal Darurat ESP32 ]
+Sensor Ultrasonik ESP32 mendeteksi pelanggaran jarak, buzzer dan led on, lalu menembakkan sinyal trigger http://10.109.1.9:8001/trigger1 ke Server AI Python.
+⬇️
+[ Tahap 1: Permintaan Ingatan Wajah (AI -> Laravel) ]
+Sebelum AI membuka kamera CCTV, AI menembak endpoint api/get-embeddings ke Laravel untuk bertanya: "Siapa saja pelanggan resmi yang saat ini sedang berada di dalam ruangan?"
+⬇️
+[ Tahap 2: Filter Database (Laravel -> AI) ]
+Laravel mencari di database dan hanya mengirimkan vektor wajah dari pelanggan yang memiliki kartu dan statusnya di_dalam.
+⬇️
+[ Tahap 3: Buka CCTV & Tangkap Layar ]
+AI membuka aliran video CCTV dan mengambil 1 frame gambar kejadian.
+⬇️
+[ Tahap 4: Pencocokan (YOLO & Face Matcher) ]
+AI mencari wajah di gambar CCTV tersebut, lalu mencocokkannya hanya dengan data pelanggan yang dikirim Laravel tadi.
+(Analogi: Detektif hanya mencocokkan wajah maling dengan daftar tamu yang sudah absen masuk).
+⬇️
+[ Tahap 5: Kirim Barang Bukti (AI -> Laravel) ]
+AI mengemas hasil deteksi (Status Dikenali/Tidak Dikenali), ID Pelanggan, Nomor Kamera, dan mengubah foto kejadian menjadi teks Base64, lalu menembakkannya ke endpoint api/save-violation.
+⬇️
+[ Tahap 6: Simpan Laporan (saveViolation) ]
+Laravel menerima data tersebut, mengubah teks Base64 kembali menjadi foto fisik .jpg, dan menyimpannya ke tabel history_pelanggarans. dan laporan muncul di dashboard Cikita.
+⬇️
+[ SELESAI ]
+
+
+4. Flowchart Menambahkan Daftar Kartu (Card Registration)
+[ MULAI ]
+⬇️
+[ Tahap 1: Persiapan Sistem ]
+Admin masuk ke menu "Daftar Kartu" di Web Laravel dan mengklik kolom input UID Kartu.
+⬇️
+[ Tahap 2: Tapping (Hardware) ]
+Pelanggan menempelkan kartu fisik ke alat Sensor RFID Reader.
+⬇️
+[ Tahap 3: Pembacaan Kode ]
+Sensor membaca Unique ID (UID) dari dalam cip kartu (misalnya kode: A1 B2 C3 D4).
+⬇️
+[ Tahap 4: Transfer UID ke Web ]
+Alat akan otomatis mengetikkan kode tersebut langsung ke kolom di web layaknya keyboard.
+⬇️
+[ Tahap 5: Penautan Data (Admin) ]
+Kode UID kartu kini sudah tampil di layar web. Admin memilih "Nama Pelanggan" dari dropdown list untuk menautkan kartu tersebut dengan wajah yang sudah didaftarkan.
+⬇️
+[ Tahap 6: Penyimpanan Database ]
+Admin menekan tombol Simpan. Web Laravel mencatat relasi kepemilikan kartu tersebut ke dalam database MySQL (Tabel kartus).
+⬇️
+[ SELESAI ] (Kartu siap digunakan untuk tap gate masuk/keluar).
