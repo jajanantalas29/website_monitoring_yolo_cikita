@@ -44,7 +44,7 @@ Langkah 2: Beri label pada kotaknya
 Beri keterangan apa saja yang baru kamu kerjakan, lalu tekan Enter:
 
 Bash
-git commit -m "Menambahkan fitur abc dan memperbaiki halaman xyz"
+git commit -m "Menambahkan Panduan Alur Sistem"
 (Teks di dalam tanda kutip bisa kamu ganti sesuai dengan apa yang kamu kerjakan).
 
 Langkah 3: Kirim kotaknya ke GitHub!

@@ -64,7 +64,9 @@
                     <input type="hidden" name="foto_kiri" id="input_foto_kiri">
                     <input type="hidden" name="foto_kanan" id="input_foto_kanan">
                     <input type="hidden" name="foto_mulut" id="input_foto_mulut">
-                    <input type="hidden" name="foto_menunduk" id="input_foto_menunduk"> <div class="relative w-full border-2 border-gray-400 rounded-2xl overflow-hidden hover:bg-gray-50 transition-all">
+                    <input type="hidden" name="foto_menunduk" id="input_foto_menunduk"> 
+                    
+                    <div class="relative w-full border-2 border-gray-400 rounded-2xl overflow-hidden hover:bg-gray-50 transition-all">
                         
                         <a href="{{ route('pendaftaran.kamera') }}" id="btn-start-camera" class="flex flex-col items-center justify-center w-full h-60 cursor-pointer group">
                             <div class="flex flex-col items-center justify-center text-center">
@@ -110,8 +112,12 @@
                                 </svg>
                             </button>
                         </div>
-
                     </div>
+                    
+                    <p class="text-xs sm:text-sm text-gray-500 mt-2 italic leading-tight">
+                        *Data pengunjung dijaga kerahasiaannya dan hanya digunakan untuk keamanan pameran.
+                    </p>
+
                 </div>
             </form>
         </div>

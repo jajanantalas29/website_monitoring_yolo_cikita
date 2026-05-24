@@ -80,7 +80,35 @@
                             </div>
                         </div>
 
-                        <!-- TAMBAHAN SUMBER KAMERA -->
+                        @if(isset($pelanggaran->pelanggan_id) && $pelanggaran->pelanggan_id != null)
+                            @php
+                                // Menghitung total pelanggaran orang ini berdasarkan riwayat waktu (hingga saat insiden ini)
+                                $jumlahPelanggaran = \Illuminate\Support\Facades\DB::table('history_pelanggarans')
+                                    ->where('pelanggan_id', $pelanggaran->pelanggan_id)
+                                    ->where('waktu', '<=', $pelanggaran->waktu)
+                                    ->count();
+                                
+                                // Jika tidak ada (mustahil karena ini adalah halaman detailnya), fallback ke 1
+                                $jumlahPelanggaran = $jumlahPelanggaran > 0 ? $jumlahPelanggaran : 1;
+                                
+                                // Kalikan denda: Rp 50.000 per pelanggaran
+                                $denda = $jumlahPelanggaran * 50000;
+                            @endphp
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Denda Pelanggaran</label>
+                                <div class="w-full px-4 py-3 rounded-lg border border-red-300 bg-red-50 text-red-700 font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+                                    <div class="flex items-center text-base sm:text-lg">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Rp {{ number_format($denda, 0, ',', '.') }}
+                                    </div>
+                                    <span class="text-xs sm:text-sm font-semibold text-red-800 bg-red-200 px-3 py-1.5 rounded-full w-fit">
+                                        Pelanggaran ke-{{ $jumlahPelanggaran }}
+                                    </span>
+                                </div>
+                            </div>
+                        @endif
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Sumber Kamera</label>
                             <div class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 font-medium flex items-center">
@@ -94,9 +122,7 @@
                                 @endif
                             </div>
                         </div>
-                        <!-- END TAMBAHAN SUMBER KAMERA -->
-
-                    </div>
+                        </div>
 
                     <div class="h-full flex flex-col mt-2 md:mt-0">
                         <label class="block text-sm font-bold text-gray-700 mb-2">Foto Bukti CCTV</label>
@@ -114,7 +140,6 @@
                 <div class="mt-8 sm:mt-10">
                     <label class="block text-sm font-bold text-gray-700 mb-4 border-b pb-2 tracking-tight">Data Foto Wajah Terdaftar (Database)</label>
                     
-                    <!-- Perbaikan Grid: 5 Kolom -->
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
                         
                         @php

@@ -39,17 +39,17 @@
                 
                 <li class="flex items-start">
                     <span class="mr-2 font-bold text-[#1f2937]">1.</span>
-                    <span class="leading-tight">Silahkan klik tombol daftar untuk melakukan pendaftaran</span>
+                    <span class="leading-tight">Klik tombol <strong>Daftar Sekarang</strong> untuk melakukan pendaftaran pengunjung.</span>
                 </li>
                 
                 <li class="flex items-start">
                     <span class="mr-2 font-bold text-[#1f2937]">2.</span>
-                    <span class="leading-tight">Setelah pendaftaran, jangan lupa mengambil kartu di bagian admin</span>
+                    <span class="leading-tight">Setelah terdaftar, Anda akan memperoleh kartu akses sebagai tiket masuk pameran.</span>
                 </li>
                 
                 <li class="flex items-start">
                     <span class="mr-2 font-bold text-[#1f2937]">3.</span>
-                    <span class="leading-tight">Dapatkan kartunya segera</span>
+                    <span class="leading-tight">Kartu dapat diambil pada hari pelaksanaan pameran setelah melakukan pembayaran di loket.</span>
                 </li>
 
             </ol>

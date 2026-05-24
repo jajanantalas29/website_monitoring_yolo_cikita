@@ -41,7 +41,7 @@
                 <p class="text-[#1f2937] text-base sm:text-xl font-bold tracking-tight px-2">
                     Pastikan wajah anda sedikit menunduk
                 </p>
-                <p class="text-gray-500 text-sm mt-1">Simulasi CCTV dari sudut atas</p>
+                <p class="text-gray-500 text-sm mt-1">Saat pose menunduk, cukup tundukkan kepala sedikit saja, jangan sampai dagu menempel ke dada.</p>
             </div>
         </div>
 
