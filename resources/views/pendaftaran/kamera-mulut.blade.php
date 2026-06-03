@@ -65,8 +65,24 @@
         // --- Sistem Text-to-Speech (Suara Google) ---
         let lastSpokenText = "";
         
+        // PERBAIKAN: Memancing (Warming Up) engine TTS saat halaman dimuat
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            if (window.speechSynthesis.resume) {
+                window.speechSynthesis.resume();
+            }
+        }
+        
         function speakText(text) {
             if ('speechSynthesis' in window && text !== lastSpokenText) {
+                // Hapus antrean lama agar suara responsif
+                window.speechSynthesis.cancel();
+
+                // Pastikan engine tidak dalam mode tertidur
+                if (window.speechSynthesis.resume) {
+                    window.speechSynthesis.resume();
+                }
+
                 lastSpokenText = text;
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID';

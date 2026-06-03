@@ -63,16 +63,33 @@
         let isCaptured = false;
         
         // --- Sistem Text-to-Speech (Suara Google) ---
-        let lastSpokenText = ""; // Mencegah AI bicara mengulang-ulang
+        let lastSpokenText = ""; 
+        
+        // PERBAIKAN: Memancing (Warming Up) engine TTS saat halaman dimuat
+        if ('speechSynthesis' in window) {
+            // Memaksa browser menyiapkan engine suara di background
+            window.speechSynthesis.cancel();
+            if (window.speechSynthesis.resume) {
+                window.speechSynthesis.resume();
+            }
+        }
         
         function speakText(text) {
-            // Jika browser mendukung fitur suara dan teksnya baru
             if ('speechSynthesis' in window && text !== lastSpokenText) {
+                // Hapus antrean lama agar suara responsif
+                window.speechSynthesis.cancel();
+
+                // Pastikan engine tidak dalam mode tertidur (suspend) oleh browser
+                if (window.speechSynthesis.resume) {
+                    window.speechSynthesis.resume();
+                }
+
                 lastSpokenText = text;
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'id-ID'; // Logat Indonesia
-                utterance.rate = 1.0;     // Kecepatan normal
-                utterance.pitch = 1.1;    // Sedikit melengking agar jelas
+                utterance.lang = 'id-ID'; 
+                utterance.rate = 1.0;     
+                utterance.pitch = 1.1;    
+                
                 window.speechSynthesis.speak(utterance);
             }
         }
@@ -90,7 +107,7 @@
 
         // 2. Start Webcam
         function startVideo() {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }) // Prioritaskan kamera depan di HP
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }) 
                 .then(stream => {
                     video.srcObject = stream;
                     statusText.innerText = "Mencari wajah...";
@@ -127,7 +144,7 @@
 
                         setTimeout(() => {
                             if (!isCaptured) { takeSnapshot(); }
-                        }, 1200); // Jeda sedikit lebih lama agar suara selesai bicara
+                        }, 1200); 
 
                     } else {
                         statusText.innerText = "Wajah kurang jelas...";
@@ -142,10 +159,9 @@
                     statusText.classList.remove('bg-green-600', 'bg-yellow-600');
                     statusText.classList.add('bg-black');
                     
-                    // Reset status bicara agar jika wajah hilang, dia bisa bicara lagi nanti
                     lastSpokenText = "Mencari wajah..."; 
                 }
-            }, 300); // Sedikit dilambatkan dari 200ms ke 300ms agar suara tidak balapan
+            }, 300); 
         });
 
         // 4. Fungsi Capture
@@ -167,7 +183,6 @@
             const dataURL = canvas.toDataURL('image/jpeg');
             localStorage.setItem('temp_foto_wajah', dataURL);
 
-            // Jeda 2 detik sebelum pindah halaman agar efek suara "Menyimpan Foto" selesai terucap
             setTimeout(() => {
                 window.location.href = "{{ route('pendaftaran.kamera-kiri') }}"; 
             }, 2000);

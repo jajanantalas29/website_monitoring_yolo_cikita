@@ -66,8 +66,24 @@
         // --- Sistem Text-to-Speech (Suara Google) ---
         let lastSpokenText = "";
         
+        // PERBAIKAN: Memancing (Warming Up) engine TTS saat halaman dimuat
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            if (window.speechSynthesis.resume) {
+                window.speechSynthesis.resume();
+            }
+        }
+        
         function speakText(text) {
             if ('speechSynthesis' in window && text !== lastSpokenText) {
+                // Hapus antrean lama agar suara responsif
+                window.speechSynthesis.cancel();
+
+                // Pastikan engine tidak dalam mode tertidur
+                if (window.speechSynthesis.resume) {
+                    window.speechSynthesis.resume();
+                }
+
                 lastSpokenText = text;
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID';
@@ -126,8 +142,6 @@
                     const lowerFaceDist = Math.abs(chin.y - noseTip.y);
 
                     // Rumus Deteksi Menunduk: 
-                    // Saat normal, rasio Upper dan Lower mendekati 1. 
-                    // Saat menunduk, Upper terlihat jauh lebih panjang dibanding Lower (rasio naik).
                     const lookDownRatio = upperFaceDist / lowerFaceDist;
 
                     // Threshold: Jika rasio lebih dari 1.3, berarti dia sedang menunduk
@@ -176,7 +190,7 @@
 
             const dataURL = canvas.toDataURL('image/jpeg');
 
-            // SIMPAN DATA MENUNDUK (Beda nama key dengan halaman mulut)
+            // SIMPAN DATA MENUNDUK 
             localStorage.setItem('temp_foto_menunduk', dataURL);
 
             // SELESAI -> KEMBALI KE FORM UTAMA
