@@ -61,6 +61,7 @@
         const statusText = document.getElementById('status-text');
         const btnCapture = document.getElementById('btn-capture');
         let isCaptured = false;
+        let intervalId; // Penambahan variabel untuk menghentikan interval
 
         // --- Sistem Text-to-Speech ---
         let lastSpokenText = "";
@@ -111,7 +112,7 @@
         video.addEventListener('play', () => {
             setTimeout(() => { speakText("Sempurna. Terakhir, silakan menghadap lurus dan buka mulut anda."); }, 1000);
 
-            setInterval(async () => {
+            intervalId = setInterval(async () => {
                 if (isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
 
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
@@ -142,6 +143,8 @@
         });
 
         function takeSnapshot() {
+            if(isCaptured) return;
+            
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -154,9 +157,9 @@
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
                 isCaptured = true;
+                clearInterval(intervalId); // FIX: Hentikan loop segera
                 speakText("Foto mulut selesai.");
                 
-                // Simpan ke localStorage dengan key 'temp_mouth_open' sesuai catatan Shafli
                 localStorage.setItem('temp_mouth_open', JSON.stringify(capturedPhotos));
 
                 setTimeout(() => {
