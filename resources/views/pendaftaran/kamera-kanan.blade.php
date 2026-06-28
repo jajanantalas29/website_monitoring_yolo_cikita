@@ -62,6 +62,7 @@
         const statusText = document.getElementById('status-text');
         const btnCapture = document.getElementById('btn-capture');
         let isCaptured = false;
+        let intervalId; // ID untuk menghentikan interval
 
         // --- Sistem Text-to-Speech ---
         let lastSpokenText = "";
@@ -114,7 +115,7 @@
         video.addEventListener('play', () => {
             setTimeout(() => { speakText("Hebat. Sekarang silakan menengok sedikit ke kanan."); }, 1000);
 
-            setInterval(async () => {
+            intervalId = setInterval(async () => {
                 if (isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
 
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
@@ -163,6 +164,7 @@
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
                 isCaptured = true;
+                clearInterval(intervalId); // FIX: Hentikan loop segera setelah target tercapai
                 speakText("Foto kanan selesai.");
                 
                 // Simpan ke localStorage dengan key 'temp_right'
