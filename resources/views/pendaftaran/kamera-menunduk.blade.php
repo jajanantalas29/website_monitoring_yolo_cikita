@@ -62,6 +62,8 @@
         const statusText = document.getElementById('status-text');
         const btnCapture = document.getElementById('btn-capture');
         let isCaptured = false;
+        let capturedPhotos = []; 
+        const MAX_PHOTOS = 20;
 
         // --- Sistem Text-to-Speech (Suara Google) ---
         let lastSpokenText = "";
@@ -174,13 +176,39 @@
             }, 350);
         });
 
+        video.addEventListener('play', () => {
+            setTimeout(() => { speakText("Selanjutnya, silakan menundukkan wajah anda sedikit ke bawah."); }, 1000);
+
+            setInterval(async () => {
+                if (isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
+
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+
+                if (detections.length > 0) {
+                    const landmarks = detections[0].landmarks;
+                    const leftEye = landmarks.positions[36];
+                    const rightEye = landmarks.positions[45];
+                    const noseTip = landmarks.positions[30];
+                    const chin = landmarks.positions[8];
+                    const eyeCenterY = (leftEye.y + rightEye.y) / 2;
+                    const upperFaceDist = Math.abs(noseTip.y - eyeCenterY);
+                    const lowerFaceDist = Math.abs(chin.y - noseTip.y);
+                    const lookDownRatio = upperFaceDist / lowerFaceDist;
+
+                    if (lookDownRatio > 1.3) { 
+                        statusText.innerText = `Mengambil bawah: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
+                        statusText.classList.add('bg-green-600');
+                        takeSnapshot();
+                    } else {
+                        statusText.innerText = "Tundukkan wajah sedikit lagi...";
+                        statusText.classList.remove('bg-green-600');
+                        statusText.classList.add('bg-black');
+                    }
+                }
+            }, 350);
+        });
+
         function takeSnapshot() {
-            if(isCaptured) return;
-            isCaptured = true;
-            
-            statusText.innerText = "Menyimpan Data...";
-            speakText("Menyimpan foto angle atas dan memproses pendaftaran.");
-            
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -189,19 +217,17 @@
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             const dataURL = canvas.toDataURL('image/jpeg');
+            capturedPhotos.push(dataURL);
 
-            // SIMPAN DATA MENUNDUK 
-            localStorage.setItem('temp_foto_menunduk', dataURL);
-
-            // SELESAI -> KEMBALI KE FORM UTAMA
-            setTimeout(() => {
-                window.location.href = "{{ route('pendaftaran.form') }}";
-            }, 2500); 
+            if (capturedPhotos.length >= MAX_PHOTOS) {
+                isCaptured = true;
+                speakText("Foto menunduk selesai.");
+                localStorage.setItem('temp_down', JSON.stringify(capturedPhotos)); // Key: temp_down
+                setTimeout(() => {
+                    window.location.href = "{{ route('pendaftaran.form') }}"; // Redirect akhir
+                }, 1000);
+            }
         }
-
-        btnCapture.addEventListener('click', () => {
-            takeSnapshot();
-        });
     </script>
 </body>
 </html>

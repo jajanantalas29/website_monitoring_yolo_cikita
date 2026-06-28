@@ -22,6 +22,9 @@ Route::get('/pendaftaran/kamera', function () { return view('pendaftaran.kamera'
 Route::get('/pendaftaran/kamera-kiri', function () { return view('pendaftaran.kamera-kiri'); })->name('pendaftaran.kamera-kiri');
 Route::get('/pendaftaran/kamera-kanan', function () { return view('pendaftaran.kamera-kanan'); })->name('pendaftaran.kamera-kanan');
 Route::get('/pendaftaran/kamera-mulut', function () { return view('pendaftaran.kamera-mulut'); })->name('pendaftaran.kamera-mulut');
+Route::get('/pendaftaran/kamera-mendongak', function () { 
+    return view('pendaftaran.kamera-mendongak'); 
+})->name('pendaftaran.kamera-mendongak');
 Route::get('/pendaftaran/kamera-menunduk', function () { return view('pendaftaran.kamera-menunduk'); })->name('pendaftaran.kamera-menunduk');
 
 // --- AUTHENTICATION ---

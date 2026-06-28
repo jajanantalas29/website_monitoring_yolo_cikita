@@ -24,94 +24,56 @@ class AdminController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Validasi Input (Format Base64 adalah string)
+        // 1. Validasi Input (Sekarang menerima json_poses)
         $request->validate([
             'nama_lengkap'  => 'required|string|max:255',
             'nomor_telepon' => 'required|string|max:20',
-            'foto_lurus'    => 'required|string',
-            'foto_kiri'     => 'required|string',
-            'foto_kanan'    => 'required|string',
-            'foto_mulut'    => 'required|string',
-            'foto_menunduk' => 'required|string', // TAMBAHAN BARU
+            'json_poses'    => 'required|string', 
         ]);
 
-        // Helper function untuk memproses Base64 ke File yang LEBIH AMAN
-        $saveBase64 = function($base64_string, $prefix) {
-            if (!$base64_string) return null;
+        $poses = json_decode($request->json_poses, true);
 
-            // Cek apakah ada koma (prefix base64)
-            if (strpos($base64_string, ',') !== false) {
-                // Jika ada prefix, pisahkan dan ambil datanya saja
-                $image_parts = explode(",", $base64_string);
-                $image_base64 = base64_decode($image_parts[1]);
-            } else {
-                // Jika murni teks sandi tanpa prefix, langsung decode
-                $image_base64 = base64_decode($base64_string);
-            }
-
-            $fileName = $prefix . '_' . time() . '_' . Str::random(5) . '.jpg';
-
-            // Simpan ke storage/app/public/wajah
-            Storage::disk('public')->put('wajah/' . $fileName, $image_base64);
-
-            return $fileName;
-        };
-
-        // 2. Proses Konversi dan Penyimpanan Foto Lokal
-        $fotoLurus   = $saveBase64($request->foto_lurus, 'lurus');
-        $fotoKiri    = $saveBase64($request->foto_kiri, 'kiri');
-        $fotoKanan   = $saveBase64($request->foto_kanan, 'kanan');
-        $fotoMulut   = $saveBase64($request->foto_mulut, 'mulut');
-        $fotoMenunduk = $saveBase64($request->foto_menunduk, 'menunduk'); // TAMBAHAN BARU
-
-        // 3. PROSES INTEGRASI KE AI SERVER (Port 8001)
+        // 2. PROSES INTEGRASI KE AI SERVER (Port 8001 - Format JSON)
         try {
-            // Mengirim KELIMA foto sekaligus ke Python AI
-            $response = Http::withoutVerifying()->timeout(60)
-                ->attach('straight', file_get_contents(storage_path('app/public/wajah/' . $fotoLurus)), 'lurus.jpg')
-                ->attach('kiri', file_get_contents(storage_path('app/public/wajah/' . $fotoKiri)), 'kiri.jpg')
-                ->attach('kanan', file_get_contents(storage_path('app/public/wajah/' . $fotoKanan)), 'kanan.jpg')
-                ->attach('mulut', file_get_contents(storage_path('app/public/wajah/' . $fotoMulut)), 'mulut.jpg')
-                ->attach('menunduk', file_get_contents(storage_path('app/public/wajah/' . $fotoMenunduk)), 'menunduk.jpg')
-                ->post('https://ai-cikita.rrlabs.web.id/api/register-face');
+            $response = Http::withoutVerifying()->timeout(120)
+                ->post('https://ai-cikita.rrlabs.web.id/api/register-face', [
+                    'visitor_id' => Str::slug($request->nama_lengkap) . '-' . time(),
+                    'poses'      => $poses
+                ]);
 
             $data = $response->json();
 
-            // 4. Jika AI Berhasil Mendeteksi Wajah
+            // 3. Jika AI Berhasil Mendeteksi Wajah (Menerima 120 embeddings)
             if ($response->successful() && isset($data['success']) && $data['success'] == true) {
                 
+                // Ambil foto referensi dari data untuk disimpan secara lokal (ambil foto pertama dari setiap pose)
+                $saveBase64 = function($base64_string, $prefix) {
+                    if (!$base64_string || strpos($base64_string, 'data:image') === false) return null;
+                    $image_data = explode(',', $base64_string)[1];
+                    $fileName = $prefix . '_' . time() . '_' . Str::random(5) . '.jpg';
+                    Storage::disk('public')->put('wajah/' . $fileName, base64_decode($image_data));
+                    return $fileName;
+                };
+
                 Pelanggan::create([
                     'nama_lengkap'  => $request->nama_lengkap,
                     'nomor_telepon' => $request->nomor_telepon,
-                    'foto_lurus'    => $fotoLurus,
-                    'foto_kiri'     => $fotoKiri,
-                    'foto_kanan'    => $fotoKanan,
-                    'foto_mulut'    => $fotoMulut,
-                    'foto_menunduk' => $fotoMenunduk, // TAMBAHAN BARU
-                    'embedding'     => json_encode($data['embedding']), // Menyimpan 512 angka vektor
+                    'foto_lurus'    => $saveBase64($poses['straight'][0], 'lurus'),
+                    'foto_kiri'     => $saveBase64($poses['left'][0], 'kiri'),
+                    'foto_kanan'    => $saveBase64($poses['right'][0], 'kanan'),
+                    'foto_mulut'    => $saveBase64($poses['mouth_open'][0], 'mulut'),
+                    'foto_menunduk' => $saveBase64($poses['down'][0], 'menunduk'),
+                    'embedding'     => json_encode($data['embeddings']), // Menyimpan 120 embeddings
                 ]);
 
                 return redirect()->route('pendaftaran.proses');
             
             } else {
-                // Hapus file jika AI gagal mendeteksi wajah (termasuk menunduk)
-                Storage::disk('public')->delete([
-                    'wajah/' . $fotoLurus, 'wajah/' . $fotoKiri, 
-                    'wajah/' . $fotoKanan, 'wajah/' . $fotoMulut,
-                    'wajah/' . $fotoMenunduk // TAMBAHAN BARU
-                ]);
-                
-                $msg = $data['message'] ?? 'Wajah tidak terdeteksi. Pastikan pencahayaan cukup.';
+                $msg = $data['message'] ?? 'Wajah tidak terdeteksi oleh AI.';
                 return back()->withInput()->withErrors(['ai_error' => $msg]);
             }
 
         } catch (\Exception $e) {
-            // Hapus file jika server AI mati (termasuk menunduk)
-            Storage::disk('public')->delete([
-                'wajah/' . $fotoLurus, 'wajah/' . $fotoKiri, 
-                'wajah/' . $fotoKanan, 'wajah/' . $fotoMulut,
-                'wajah/' . $fotoMenunduk // TAMBAHAN BARU
-            ]);
             return back()->withInput()->withErrors(['ai_error' => 'Gagal terhubung ke AI: ' . $e->getMessage()]);
         }
     }
@@ -143,14 +105,14 @@ class AdminController extends Controller
             'wajah/' . $pelanggan->foto_kiri,
             'wajah/' . $pelanggan->foto_kanan,
             'wajah/' . $pelanggan->foto_mulut,
-            'wajah/' . $pelanggan->foto_menunduk // TAMBAHAN BARU
+            'wajah/' . $pelanggan->foto_menunduk
         ]);
         $pelanggan->delete();
         return redirect()->route('admin.pelanggan')->with('success', 'Data dihapus!');
     }
 
     // ==========================================
-    // MENU STATUS & PELANGGARAN
+    // MENU STATUS & PELANGGARAN (Dibiarkan Tetap)
     // ==========================================
 
     public function status()
@@ -159,30 +121,20 @@ class AdminController extends Controller
         return view('admin.status.index', compact('pelanggan'));
     }
 
-    // Fungsi untuk memproses hasil scan RFID di halaman Status
     public function scanStatus(Request $request)
     {
-        // Pastikan ada UID yang terkirim
-        $request->validate([
-            'uid_kartu' => 'required|string',
-        ]);
-
-        // Cari kartu berdasarkan UID yang di-scan
+        $request->validate(['uid_kartu' => 'required|string']);
         $kartu = Kartu::where('uid_kartu', $request->uid_kartu)->first();
 
-        // Jika kartu tidak ditemukan di database
         if (!$kartu) {
-            return redirect()->route('admin.status')->with('error', 'Kartu dengan UID ' . $request->uid_kartu . ' tidak terdaftar!');
+            return redirect()->route('admin.status')->with('error', 'Kartu tidak terdaftar!');
         }
 
-        // Ambil data pelanggan yang terhubung dengan kartu tersebut
         $pelanggan = $kartu->pelanggan;
-
         if (!$pelanggan) {
-            return redirect()->route('admin.status')->with('error', 'Kartu terdaftar, tapi tidak terhubung ke pelanggan mana pun.');
+            return redirect()->route('admin.status')->with('error', 'Kartu tidak terhubung ke pelanggan.');
         }
 
-        // Logika Toggle: Jika di luar jadi di dalam, jika di dalam jadi di luar
         if ($pelanggan->status_ruangan === 'di_dalam') {
             $pelanggan->status_ruangan = 'di_luar';
             $pesan = $pelanggan->nama_lengkap . ' telah keluar ruangan.';
@@ -191,9 +143,7 @@ class AdminController extends Controller
             $pesan = $pelanggan->nama_lengkap . ' telah masuk ruangan.';
         }
 
-        // Simpan perubahan ke database
         $pelanggan->save();
-
         return redirect()->route('admin.status')->with('success', $pesan);
     }
 
@@ -205,15 +155,9 @@ class AdminController extends Controller
 
     public function pelanggaran()
     {
-        // Mengambil data dari tabel history_pelanggarans dan join dengan tabel pelanggans
-        // Left Join digunakan agar data "Tidak Dikenali" (tanpa pelanggan_id) tetap ikut tampil
         $pelanggaran = DB::table('history_pelanggarans')
             ->leftJoin('pelanggans', 'history_pelanggarans.pelanggan_id', '=', 'pelanggans.id')
-            ->select(
-                'history_pelanggarans.*', 
-                'pelanggans.nama_lengkap as nama', // Ubah nama_lengkap menjadi nama untuk view
-                'pelanggans.nomor_telepon'
-            )
+            ->select('history_pelanggarans.*', 'pelanggans.nama_lengkap as nama', 'pelanggans.nomor_telepon')
             ->orderBy('history_pelanggarans.waktu', 'desc')
             ->get();
 
@@ -222,52 +166,28 @@ class AdminController extends Controller
 
     public function destroyPelanggaran($id)
     {
-        // Cari datanya di database
-        $pelanggaran = \Illuminate\Support\Facades\DB::table('history_pelanggarans')->where('id', $id)->first();
-        
+        $pelanggaran = DB::table('history_pelanggarans')->where('id', $id)->first();
         if ($pelanggaran) {
-            // Hapus foto fisiknya dari folder storage agar memori Orange Pi tidak penuh
-            if ($pelanggaran->gambar_bukti && \Illuminate\Support\Facades\Storage::disk('public')->exists($pelanggaran->gambar_bukti)) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($pelanggaran->gambar_bukti);
+            if ($pelanggaran->gambar_bukti && Storage::disk('public')->exists($pelanggaran->gambar_bukti)) {
+                Storage::disk('public')->delete($pelanggaran->gambar_bukti);
             }
-            
-            // Hapus datanya dari database
-            \Illuminate\Support\Facades\DB::table('history_pelanggarans')->where('id', $id)->delete();
-            
+            DB::table('history_pelanggarans')->where('id', $id)->delete();
             return redirect()->back()->with('success', 'Data pelanggaran berhasil dihapus!');
         }
-
         return redirect()->back()->with('error', 'Data tidak ditemukan.');
     }
 
     public function detailPelanggaran($id)
     {
-        // Ambil data detail beserta data pelanggan yang berelasi (jika ada)
         $pelanggaran = DB::table('history_pelanggarans')
             ->leftJoin('pelanggans', 'history_pelanggarans.pelanggan_id', '=', 'pelanggans.id')
-            ->select(
-                'history_pelanggarans.*', 
-                'pelanggans.nama_lengkap as nama',
-                'pelanggans.nomor_telepon',
-                'pelanggans.foto_lurus',
-                'pelanggans.foto_kiri',
-                'pelanggans.foto_kanan',
-                'pelanggans.foto_mulut',
-                'pelanggans.foto_menunduk' // TAMBAHAN BARU
-            )
+            ->select('history_pelanggarans.*', 'pelanggans.nama_lengkap as nama', 'pelanggans.nomor_telepon', 'pelanggans.foto_lurus', 'pelanggans.foto_kiri', 'pelanggans.foto_kanan', 'pelanggans.foto_mulut', 'pelanggans.foto_menunduk')
             ->where('history_pelanggarans.id', $id)
             ->first();
 
-        if (!$pelanggaran) {
-            return redirect()->route('admin.pelanggaran')->with('error', 'Data tidak ditemukan!');
-        }
-
+        if (!$pelanggaran) return redirect()->route('admin.pelanggaran')->with('error', 'Data tidak ditemukan!');
         return view('admin.pelanggaran.detail', compact('pelanggaran'));
     }
-
-    // ==========================================
-    // MENU DAFTAR KARTU
-    // ==========================================
 
     public function kartu()
     {
@@ -283,11 +203,7 @@ class AdminController extends Controller
 
     public function storeKartu(Request $request)
     {
-        $request->validate([
-            'pelanggan_id' => 'required|exists:pelanggans,id',
-            'uid_kartu' => 'required|unique:kartus,uid_kartu',
-        ]);
-
+        $request->validate(['pelanggan_id' => 'required|exists:pelanggans,id', 'uid_kartu' => 'required|unique:kartus,uid_kartu']);
         Kartu::create($request->all());
         return redirect()->route('admin.kartu')->with('success', 'Kartu terdaftar!');
     }

@@ -62,27 +62,17 @@
         const btnCapture = document.getElementById('btn-capture');
         let isCaptured = false;
 
-        // --- Sistem Text-to-Speech (Suara Google) ---
+        // --- Sistem Text-to-Speech ---
         let lastSpokenText = "";
-        
-        // PERBAIKAN: Memancing (Warming Up) engine TTS saat halaman dimuat
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
-            if (window.speechSynthesis.resume) {
-                window.speechSynthesis.resume();
-            }
+            if (window.speechSynthesis.resume) window.speechSynthesis.resume();
         }
         
         function speakText(text) {
             if ('speechSynthesis' in window && text !== lastSpokenText) {
-                // Hapus antrean lama agar suara responsif
                 window.speechSynthesis.cancel();
-
-                // Pastikan engine tidak dalam mode tertidur
-                if (window.speechSynthesis.resume) {
-                    window.speechSynthesis.resume();
-                }
-
+                if (window.speechSynthesis.resume) window.speechSynthesis.resume();
                 lastSpokenText = text;
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID';
@@ -91,7 +81,10 @@
                 window.speechSynthesis.speak(utterance);
             }
         }
-        // ---------------------------------------------
+
+        // --- Variabel Baru untuk Multi-Capture ---
+        let capturedPhotos = []; 
+        const MAX_PHOTOS = 20;
 
         Promise.all([
             faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
@@ -116,61 +109,39 @@
         }
 
         video.addEventListener('play', () => {
-            // Sapaan dan Instruksi Awal untuk Mulut
             setTimeout(() => { speakText("Sempurna. Terakhir, silakan menghadap lurus dan buka mulut anda."); }, 1000);
 
             setInterval(async () => {
-                if (isCaptured) return;
+                if (isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
 
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
 
                 if (detections.length > 0) {
                     const landmarks = detections[0].landmarks;
-                    
-                    // Titik Bibir Dalam
                     const mouthTop = landmarks.positions[62];
                     const mouthBottom = landmarks.positions[66];
-
-                    // Hitung Jarak Vertikal Bibir
                     const mouthOpening = Math.abs(mouthBottom.y - mouthTop.y);
 
-                    // Threshold: Jarak > 15 pixel dianggap terbuka
                     if (mouthOpening > 15) { 
-                        
-                        statusText.innerText = "Mulut Terbuka! Tahan...";
+                        statusText.innerText = `Mengambil mulut: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
                         statusText.classList.remove('bg-black', 'bg-red-500');
                         statusText.classList.add('bg-green-600');
                         
-                        speakText("Mulut terbuka. Tahan.");
-
-                        setTimeout(() => {
-                            if (!isCaptured) { takeSnapshot(); }
-                        }, 1200);
-
+                        takeSnapshot();
                     } else {
-                         statusText.innerText = "Buka mulut lebih lebar...";
-                         statusText.classList.remove('bg-green-600');
-                         statusText.classList.add('bg-black');
-                         
-                         speakText("Buka mulut lebih lebar.");
+                        statusText.innerText = "Buka mulut lebih lebar...";
+                        statusText.classList.remove('bg-green-600');
+                        statusText.classList.add('bg-black');
+                        speakText("Buka mulut lebih lebar.");
                     }
-
                 } else {
                     statusText.innerText = "Wajah tidak terdeteksi...";
                     statusText.classList.add('bg-black');
-                    
-                    lastSpokenText = "Wajah tidak terdeteksi...";
                 }
             }, 350);
         });
 
         function takeSnapshot() {
-            if(isCaptured) return;
-            isCaptured = true;
-            
-            statusText.innerText = "Menyimpan Data...";
-            speakText("Menyimpan foto mulut dan memproses pendaftaran.");
-            
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -179,18 +150,23 @@
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             const dataURL = canvas.toDataURL('image/jpeg');
+            capturedPhotos.push(dataURL);
 
-            // SIMPAN DATA MULUT
-            localStorage.setItem('temp_foto_mulut', dataURL);
+            if (capturedPhotos.length >= MAX_PHOTOS) {
+                isCaptured = true;
+                speakText("Foto mulut selesai.");
+                
+                // Simpan ke localStorage dengan key 'temp_mouth_open' sesuai catatan Shafli
+                localStorage.setItem('temp_mouth_open', JSON.stringify(capturedPhotos));
 
-            // SELESAI -> LANJUT KE TAHAP MENUNDUK
-            setTimeout(() => {
-                window.location.href = "{{ route('pendaftaran.kamera-menunduk') }}";
-            }, 2500);
+                setTimeout(() => {
+                    window.location.href = "{{ route('pendaftaran.kamera-mendongak') }}";
+                }, 1000);
+            }
         }
 
         btnCapture.addEventListener('click', () => {
-            takeSnapshot();
+            if(capturedPhotos.length > 0) alert("Proses otomatis berjalan...");
         });
     </script>
 </body>

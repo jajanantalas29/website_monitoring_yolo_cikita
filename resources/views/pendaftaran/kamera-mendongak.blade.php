@@ -2,22 +2,12 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ambil Foto Kiri - Monitoring Pameran</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <title>Ambil Foto Mendongak</title>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js/dist/face-api.min.js"></script>
-
     @vite('resources/css/app.css')
-    
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        /* Mirror effect agar pengalaman pengguna natural seperti bercermin */
-        video { transform: scaleX(-1); } 
-    </style>
+    <style> video { transform: scaleX(-1); } </style>
 </head>
-<body class="bg-[#1f2937] antialiased min-h-screen flex items-center justify-center p-4">
-
+<body class="bg-[#1f2937] min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-2xl flex flex-col">
         
         <div class="bg-white rounded-[1.5rem] shadow-2xl p-4 sm:p-6 w-full mb-6">
@@ -28,7 +18,8 @@
 
                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="white" class="w-24 h-24 sm:w-32 sm:h-32 opacity-60">
-                         <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5V6a3 3 0 013-3h1.5M16.5 3H18a3 3 0 013 3v1.5M21 16.5V18a3 3 0 01-3 3h-1.5M7.5 21H6a3 3 0 01-3-3v-1.5" stroke-width="1" class="opacity-80"/>
                     </svg>
                 </div>
 
@@ -39,7 +30,7 @@
 
             <div class="mt-6 text-center">
                 <p class="text-[#1f2937] text-base sm:text-xl font-bold tracking-tight px-2">
-                    Pastikan wajah anda menengok ke kiri
+                    Pastikan wajah anda sedikit ke atas
                 </p>
             </div>
         </div>
@@ -49,7 +40,7 @@
                 Batal
             </a>
             <button id="btn-capture" class="w-full sm:w-auto bg-white text-[#1f2937] font-bold py-3.5 sm:py-2.5 px-10 rounded-xl shadow-xl hover:bg-gray-200 transition duration-300 text-sm sm:text-base flex items-center justify-center">
-                Lanjut (Manual)
+                Simpan (Manual)
             </button>
         </div>
 
@@ -59,20 +50,30 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const statusText = document.getElementById('status-text');
-        const btnCapture = document.getElementById('btn-capture');
-        let isCaptured = false;
+        let capturedPhotos = []; 
+        const MAX_PHOTOS = 20;
 
-        // --- Sistem Text-to-Speech ---
+        // --- Sistem Text-to-Speech (Suara Google) ---
         let lastSpokenText = "";
+        
+        // PERBAIKAN: Memancing (Warming Up) engine TTS saat halaman dimuat
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
-            if (window.speechSynthesis.resume) window.speechSynthesis.resume();
+            if (window.speechSynthesis.resume) {
+                window.speechSynthesis.resume();
+            }
         }
         
         function speakText(text) {
             if ('speechSynthesis' in window && text !== lastSpokenText) {
+                // Hapus antrean lama agar suara responsif
                 window.speechSynthesis.cancel();
-                if (window.speechSynthesis.resume) window.speechSynthesis.resume();
+
+                // Pastikan engine tidak dalam mode tertidur
+                if (window.speechSynthesis.resume) {
+                    window.speechSynthesis.resume();
+                }
+
                 lastSpokenText = text;
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID';
@@ -81,12 +82,8 @@
                 window.speechSynthesis.speak(utterance);
             }
         }
+        // ---------------------------------------------
 
-        // --- Variabel Baru untuk Multi-Capture ---
-        let capturedPhotos = []; 
-        const MAX_PHOTOS = 20;
-
-        // Load Model
         Promise.all([
             faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
             faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
@@ -101,7 +98,7 @@
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
                 .then(stream => {
                     video.srcObject = stream;
-                    statusText.innerText = "Silahkan tengok ke KIRI...";
+                    statusText.innerText = "Silakan TUNDUKKAN wajah anda...";
                 })
                 .catch(err => {
                     statusText.innerText = "Kamera Error";
@@ -109,73 +106,42 @@
                 });
         }
 
-        // Deteksi Arah Wajah & Multi-Capture
         video.addEventListener('play', () => {
-            setTimeout(() => { speakText("Bagus. Sekarang silakan menengok sedikit ke kiri."); }, 1000);
-
             setInterval(async () => {
-                if (isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
-
+                if (capturedPhotos.length >= MAX_PHOTOS) return;
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
-
                 if (detections.length > 0) {
                     const landmarks = detections[0].landmarks;
-                    const nose = landmarks.getNose()[0]; 
-                    const jawLeft = landmarks.getJawOutline()[0];
-                    const jawRight = landmarks.getJawOutline()[16];
-
-                    const distToLeft = Math.abs(nose.x - jawLeft.x);
-                    const distToRight = Math.abs(nose.x - jawRight.x);
-
-                    if (distToLeft > (distToRight * 2.0)) { 
-                        statusText.innerText = `Mengambil kiri: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
-                        statusText.classList.remove('bg-black', 'bg-yellow-600', 'bg-red-500');
-                        statusText.classList.add('bg-green-600');
-                        
+                    const leftEye = landmarks.positions[36];
+                    const rightEye = landmarks.positions[45];
+                    const noseTip = landmarks.positions[30];
+                    const eyeCenterY = (leftEye.y + rightEye.y) / 2;
+                    
+                    // Logika Mendongak: Jika hidung di atas rata-rata mata
+                    if (noseTip.y < eyeCenterY) { 
+                        statusText.innerText = `Mengambil atas: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
                         takeSnapshot();
-                    } else if (distToRight > (distToLeft * 2.0)) {
-                        statusText.innerText = "Itu Kanan! Silahkan tengok Kiri.";
-                        statusText.classList.add('bg-red-500');
-                        speakText("Itu kanan. Tolong tengok ke kiri.");
                     } else {
-                        statusText.innerText = "Belum pas... Tengok Kiri lagi.";
-                        statusText.classList.add('bg-yellow-600');
+                        statusText.innerText = "Dongakkan wajah sedikit...";
                     }
-                } else {
-                    statusText.innerText = "Wajah tidak terdeteksi...";
-                    statusText.classList.add('bg-black');
                 }
-            }, 300);
+            }, 350);
         });
 
         function takeSnapshot() {
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            const dataURL = canvas.toDataURL('image/jpeg');
-            capturedPhotos.push(dataURL);
+            capturedPhotos.push(canvas.toDataURL('image/jpeg'));
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
-                isCaptured = true;
-                speakText("Foto kiri selesai.");
-                
-                // Simpan ke localStorage dengan key 'temp_left' sesuai dokumentasi baru
-                localStorage.setItem('temp_left', JSON.stringify(capturedPhotos));
-
-                setTimeout(() => {
-                    window.location.href = "{{ route('pendaftaran.kamera-kanan') }}";
-                }, 1000);
+                localStorage.setItem('temp_up', JSON.stringify(capturedPhotos)); // Key: temp_up
+                window.location.href = "{{ route('pendaftaran.kamera-menunduk') }}";
             }
         }
-
-        btnCapture.addEventListener('click', () => {
-            if(capturedPhotos.length > 0) alert("Proses otomatis berjalan...");
-        });
     </script>
 </body>
 </html>

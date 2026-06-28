@@ -65,37 +65,29 @@
         // --- Sistem Text-to-Speech (Suara Google) ---
         let lastSpokenText = ""; 
         
-        // PERBAIKAN: Memancing (Warming Up) engine TTS saat halaman dimuat
         if ('speechSynthesis' in window) {
-            // Memaksa browser menyiapkan engine suara di background
             window.speechSynthesis.cancel();
-            if (window.speechSynthesis.resume) {
-                window.speechSynthesis.resume();
-            }
+            if (window.speechSynthesis.resume) window.speechSynthesis.resume();
         }
         
         function speakText(text) {
             if ('speechSynthesis' in window && text !== lastSpokenText) {
-                // Hapus antrean lama agar suara responsif
                 window.speechSynthesis.cancel();
-
-                // Pastikan engine tidak dalam mode tertidur (suspend) oleh browser
-                if (window.speechSynthesis.resume) {
-                    window.speechSynthesis.resume();
-                }
-
+                if (window.speechSynthesis.resume) window.speechSynthesis.resume();
                 lastSpokenText = text;
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID'; 
-                utterance.rate = 1.0;     
-                utterance.pitch = 1.1;    
-                
+                utterance.rate = 1.0; 
+                utterance.pitch = 1.1;
                 window.speechSynthesis.speak(utterance);
             }
         }
-        // ---------------------------------------------
 
-        // 1. Load Model (Hanya TinyFaceDetector agar ringan & cepat)
+        // --- Variabel Baru untuk Multi-Capture ---
+        let capturedPhotos = []; // Array untuk menampung 20 foto
+        const MAX_PHOTOS = 20;
+
+        // 1. Load Model
         Promise.all([
             faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
         ]).then(startVideo).catch(err => {
@@ -113,65 +105,36 @@
                     statusText.innerText = "Mencari wajah...";
                 })
                 .catch(err => {
-                    console.error("Camera Error:", err);
                     statusText.innerText = "Izin kamera ditolak.";
                     statusText.classList.add('bg-red-500');
                     speakText("Tolong izinkan akses kamera.");
                 });
         }
 
-        // 3. Deteksi Wajah
+        // 3. Deteksi Wajah & Multi-Capture
         video.addEventListener('play', () => {
-            // Beri sapaan awal saat kamera menyala
             setTimeout(() => { speakText("Mencari wajah. Silakan menghadap lurus ke kamera."); }, 1000);
 
             setInterval(async () => {
-                if (isCaptured) return;
+                if (isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
 
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }));
 
                 if (detections.length > 0) {
-                    const detection = detections[0];
-                    const score = detection.score;
-
-                    if (score > 0.55) {
-                        statusText.innerText = "Wajah Terdeteksi! Tahan...";
-                        statusText.classList.remove('bg-black', 'bg-red-500', 'bg-yellow-600');
-                        statusText.classList.add('bg-green-600');
-                        
-                        // Panggil fitur suara
-                        speakText("Wajah Terdeteksi! Tahan...");
-
-                        setTimeout(() => {
-                            if (!isCaptured) { takeSnapshot(); }
-                        }, 1200); 
-
-                    } else {
-                        statusText.innerText = "Wajah kurang jelas...";
-                        statusText.classList.remove('bg-green-600', 'bg-black');
-                        statusText.classList.add('bg-yellow-600');
-                        
-                        // Panggil fitur suara
-                        speakText("Wajah kurang jelas.");
-                    }
+                    statusText.innerText = `Mengambil foto: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
+                    statusText.classList.add('bg-green-600');
+                    
+                    // Eksekusi Capture Otomatis
+                    takeSnapshot();
                 } else {
                     statusText.innerText = "Mencari wajah...";
-                    statusText.classList.remove('bg-green-600', 'bg-yellow-600');
-                    statusText.classList.add('bg-black');
-                    
-                    lastSpokenText = "Mencari wajah..."; 
+                    statusText.classList.remove('bg-green-600');
                 }
             }, 300); 
         });
 
-        // 4. Fungsi Capture
+        // 4. Fungsi Capture (Modifikasi untuk Looping)
         function takeSnapshot() {
-            if(isCaptured) return;
-            isCaptured = true;
-
-            statusText.innerText = "Menyimpan Foto...";
-            speakText("Menyimpan Foto...");
-            
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -181,15 +144,27 @@
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             const dataURL = canvas.toDataURL('image/jpeg');
-            localStorage.setItem('temp_foto_wajah', dataURL);
+            // Simpan ke array
+            capturedPhotos.push(dataURL);
 
-            setTimeout(() => {
-                window.location.href = "{{ route('pendaftaran.kamera-kiri') }}"; 
-            }, 2000);
+            if (capturedPhotos.length >= MAX_PHOTOS) {
+                isCaptured = true;
+                statusText.innerText = "Selesai!";
+                speakText("Foto wajah lurus selesai.");
+                
+                // Simpan ke localStorage sebagai objek array untuk dikirim nanti
+                localStorage.setItem('temp_straight', JSON.stringify(capturedPhotos));
+
+                setTimeout(() => {
+                    window.location.href = "{{ route('pendaftaran.kamera-kiri') }}"; 
+                }, 1000);
+            }
         }
 
         btnCapture.addEventListener('click', () => {
-            takeSnapshot();
+            if(capturedPhotos.length > 0) {
+                alert("Proses otomatis sedang berjalan...");
+            }
         });
     </script>
 </body>

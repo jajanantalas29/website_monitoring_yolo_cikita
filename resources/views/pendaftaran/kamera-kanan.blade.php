@@ -63,27 +63,18 @@
         const btnCapture = document.getElementById('btn-capture');
         let isCaptured = false;
 
-        // --- Sistem Text-to-Speech (Suara Google) ---
+        // --- Sistem Text-to-Speech ---
         let lastSpokenText = "";
         
-        // PERBAIKAN: Memancing (Warming Up) engine TTS saat halaman dimuat
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
-            if (window.speechSynthesis.resume) {
-                window.speechSynthesis.resume();
-            }
+            if (window.speechSynthesis.resume) window.speechSynthesis.resume();
         }
         
         function speakText(text) {
             if ('speechSynthesis' in window && text !== lastSpokenText) {
-                // Hapus antrean lama agar suara responsif
                 window.speechSynthesis.cancel();
-
-                // Pastikan engine tidak dalam mode tertidur
-                if (window.speechSynthesis.resume) {
-                    window.speechSynthesis.resume();
-                }
-
+                if (window.speechSynthesis.resume) window.speechSynthesis.resume();
                 lastSpokenText = text;
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID';
@@ -92,7 +83,10 @@
                 window.speechSynthesis.speak(utterance);
             }
         }
-        // ---------------------------------------------
+
+        // --- Variabel Baru untuk Multi-Capture ---
+        let capturedPhotos = []; 
+        const MAX_PHOTOS = 20;
 
         // Load AI
         Promise.all([
@@ -118,67 +112,45 @@
         }
 
         video.addEventListener('play', () => {
-            // Sapaan dan Instruksi Awal untuk Kanan
             setTimeout(() => { speakText("Hebat. Sekarang silakan menengok sedikit ke kanan."); }, 1000);
 
             setInterval(async () => {
-                if (isCaptured) return;
+                if (isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
 
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
 
                 if (detections.length > 0) {
                     const landmarks = detections[0].landmarks;
                     const nose = landmarks.getNose()[0];
-                    const jawLeft = landmarks.getJawOutline()[0];  // Rahang Kanan User (Kiri di Layar)
-                    const jawRight = landmarks.getJawOutline()[16]; // Rahang Kiri User (Kanan di Layar)
+                    const jawLeft = landmarks.getJawOutline()[0];
+                    const jawRight = landmarks.getJawOutline()[16];
 
                     const distToLeft = Math.abs(nose.x - jawLeft.x);
                     const distToRight = Math.abs(nose.x - jawRight.x);
 
                     // LOGIKA TENGOK KANAN
                     if (distToRight > (distToLeft * 2.0)) {
-                        
-                        statusText.innerText = "Posisi KANAN Oke! Tahan...";
+                        statusText.innerText = `Mengambil kanan: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
                         statusText.classList.remove('bg-black', 'bg-red-500', 'bg-yellow-600');
                         statusText.classList.add('bg-green-600');
                         
-                        speakText("Posisi Kanan Oke. Tahan.");
-
-                        setTimeout(() => {
-                            if (!isCaptured) { takeSnapshot(); }
-                        }, 1200);
-
+                        takeSnapshot();
                     } else if (distToLeft > (distToRight * 2.0)) {
                         statusText.innerText = "Itu Kiri! Silahkan tengok Kanan.";
-                        statusText.classList.remove('bg-green-600');
                         statusText.classList.add('bg-red-500');
-                        
                         speakText("Itu kiri. Tolong tengok ke kanan.");
                     } else {
-                         statusText.innerText = "Belum pas... Tengok Kanan lagi.";
-                         statusText.classList.remove('bg-green-600', 'bg-red-500');
-                         statusText.classList.add('bg-yellow-600');
-                         
-                         speakText("Belum pas. Tengok kanan lagi.");
+                        statusText.innerText = "Belum pas... Tengok Kanan lagi.";
+                        statusText.classList.add('bg-yellow-600');
                     }
-
                 } else {
                     statusText.innerText = "Wajah tidak terdeteksi...";
-                    statusText.classList.remove('bg-green-600', 'bg-yellow-600', 'bg-red-500');
                     statusText.classList.add('bg-black');
-                    
-                    lastSpokenText = "Wajah tidak terdeteksi...";
                 }
             }, 350);
         });
 
         function takeSnapshot() {
-            if(isCaptured) return;
-            isCaptured = true;
-            
-            statusText.innerText = "Menyimpan...";
-            speakText("Menyimpan foto kanan.");
-            
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -187,18 +159,23 @@
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             const dataURL = canvas.toDataURL('image/jpeg');
+            capturedPhotos.push(dataURL);
 
-            // SIMPAN DATA KANAN
-            localStorage.setItem('temp_foto_kanan', dataURL);
+            if (capturedPhotos.length >= MAX_PHOTOS) {
+                isCaptured = true;
+                speakText("Foto kanan selesai.");
+                
+                // Simpan ke localStorage dengan key 'temp_right'
+                localStorage.setItem('temp_right', JSON.stringify(capturedPhotos));
 
-            // Redirect ke langkah selanjutnya (Halaman - Mulut)
-            setTimeout(() => {
-                window.location.href = "{{ route('pendaftaran.kamera-mulut') }}";
-            }, 2000);
+                setTimeout(() => {
+                    window.location.href = "{{ route('pendaftaran.kamera-mulut') }}";
+                }, 1000);
+            }
         }
 
         btnCapture.addEventListener('click', () => {
-            takeSnapshot();
+            if(capturedPhotos.length > 0) alert("Proses otomatis berjalan...");
         });
     </script>
 </body>
