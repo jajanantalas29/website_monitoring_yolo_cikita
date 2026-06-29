@@ -86,10 +86,18 @@
                     const leftEye = landmarks.positions[36];
                     const rightEye = landmarks.positions[45];
                     const noseTip = landmarks.positions[30];
+                    
+                    // Hitung posisi mata
                     const eyeCenterY = (leftEye.y + rightEye.y) / 2;
                     
-                    // PERBAIKAN: Gunakan ambang batas (30) agar deteksi tidak terlalu kaku/peka
-                    const isLookingUp = (eyeCenterY - noseTip.y) > 30; 
+                    // DEBUG: Lihat angka di Console Browser (F12)
+                    // Jika noseTip.y > eyeCenterY, artinya hidung berada di bawah mata (Mendongak)
+                    console.log("Posisi Hidung (Y):", noseTip.y, "Posisi Mata (Y):", eyeCenterY);
+
+                    // LOGIKA DIPERBAIKI: 
+                    // Jika noseTip.y > eyeCenterY + 10, artinya hidung sudah di bawah garis mata.
+                    // Angka 10 adalah toleransi. Jika masih susah, kecilkan angkanya (misal jadi 5).
+                    const isLookingUp = (noseTip.y > eyeCenterY + 10); 
 
                     if (isLookingUp) { 
                         statusText.innerText = `Mengambil atas: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
@@ -103,7 +111,7 @@
                 } else {
                     statusText.innerText = "Wajah tidak terdeteksi...";
                 }
-            }, 500); // Diperlambat sedikit agar AI lebih stabil
+            }, 500); 
         });
 
         function takeSnapshot() {
