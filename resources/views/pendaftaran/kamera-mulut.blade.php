@@ -70,17 +70,29 @@
             if (window.speechSynthesis.resume) window.speechSynthesis.resume();
         }
         
-        function speakText(text) {
-            if ('speechSynthesis' in window && text !== lastSpokenText) {
-                window.speechSynthesis.cancel();
-                if (window.speechSynthesis.resume) window.speechSynthesis.resume();
-                lastSpokenText = text;
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'id-ID';
-                utterance.rate = 1.0;
-                utterance.pitch = 1.1;
-                window.speechSynthesis.speak(utterance);
+        function speakText(text, callback = null) {
+            if (!('speechSynthesis' in window)) {
+                if (callback) callback();
+                return;
             }
+
+            if (text === lastSpokenText && !callback) return;
+
+            window.speechSynthesis.cancel();
+            if (window.speechSynthesis.resume) window.speechSynthesis.resume();
+
+            lastSpokenText = text;
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'id-ID';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.1;
+
+            if (callback) {
+                utterance.onend = callback;
+            }
+
+            window.speechSynthesis.speak(utterance);
         }
 
         // --- Variabel Baru untuk Multi-Capture ---
@@ -157,14 +169,24 @@
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
                 isCaptured = true;
-                clearInterval(intervalId); // FIX: Hentikan loop segera
-                speakText("Foto mulut selesai.");
-                
+                clearInterval(intervalId);
+
                 localStorage.setItem('temp_mouth_open', JSON.stringify(capturedPhotos));
 
-                setTimeout(() => {
+                // Matikan kamera
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+
+                const nextPage = () => {
                     window.location.href = "{{ route('pendaftaran.kamera-mendongak') }}";
-                }, 1000);
+                };
+
+                // Ucapkan lalu lanjut ke halaman berikut
+                speakText("Foto mulut selesai.", nextPage);
+
+                // Fallback jika browser tidak memanggil onend
+                setTimeout(nextPage, 3000);
             }
         }
 
