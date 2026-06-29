@@ -61,123 +61,38 @@
         const canvas = document.getElementById('canvas');
         const statusText = document.getElementById('status-text');
         const btnCapture = document.getElementById('btn-capture');
-        let isCaptured = false;
+        
         let capturedPhotos = []; 
         const MAX_PHOTOS = 20;
+        let isCaptured = false;
 
-        // --- Sistem Text-to-Speech (Suara Google) ---
-        let lastSpokenText = "";
-        
-        // PERBAIKAN: Memancing (Warming Up) engine TTS saat halaman dimuat
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            if (window.speechSynthesis.resume) {
-                window.speechSynthesis.resume();
-            }
-        }
-        
+        localStorage.removeItem('temp_down');
+
         function speakText(text) {
-            if ('speechSynthesis' in window && text !== lastSpokenText) {
-                // Hapus antrean lama agar suara responsif
+            if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-
-                // Pastikan engine tidak dalam mode tertidur
-                if (window.speechSynthesis.resume) {
-                    window.speechSynthesis.resume();
-                }
-
-                lastSpokenText = text;
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID';
-                utterance.rate = 1.0;
-                utterance.pitch = 1.1;
                 window.speechSynthesis.speak(utterance);
             }
         }
-        // ---------------------------------------------
+
+        // Pemicu Suara (Harus ada interaksi user)
+        btnCapture.addEventListener('click', () => { speakText("Proses dimulai"); });
 
         Promise.all([
             faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
             faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
-        ]).then(startVideo).catch(err => {
-            console.error(err);
-            statusText.innerText = "Gagal Load AI.";
-            statusText.classList.add('bg-red-500');
-            speakText("Gagal memuat sistem pelacakan wajah.");
-        });
+        ]).then(startVideo);
 
         function startVideo() {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-                .then(stream => {
-                    video.srcObject = stream;
-                    statusText.innerText = "Silakan TUNDUKKAN wajah anda...";
-                })
-                .catch(err => {
-                    statusText.innerText = "Kamera Error";
-                    speakText("Izin kamera ditolak.");
-                });
+                .then(stream => { video.srcObject = stream; })
+                .catch(err => { statusText.innerText = "Kamera Error"; });
         }
 
         video.addEventListener('play', () => {
-            // Sapaan dan Instruksi Awal untuk Menunduk
-            setTimeout(() => { speakText("Selanjutnya, silakan menundukkan wajah anda sedikit ke bawah."); }, 1000);
-
-            setInterval(async () => {
-                if (isCaptured) return;
-
-                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
-
-                if (detections.length > 0) {
-                    const landmarks = detections[0].landmarks;
-                    
-                    // Ambil titik koordinat kunci
-                    const leftEye = landmarks.positions[36];
-                    const rightEye = landmarks.positions[45];
-                    const noseTip = landmarks.positions[30];
-                    const chin = landmarks.positions[8];
-
-                    // Cari titik tengah antara kedua mata
-                    const eyeCenterY = (leftEye.y + rightEye.y) / 2;
-
-                    // Hitung jarak vertikal (Mata ke Hidung vs Hidung ke Dagu)
-                    const upperFaceDist = Math.abs(noseTip.y - eyeCenterY);
-                    const lowerFaceDist = Math.abs(chin.y - noseTip.y);
-
-                    // Rumus Deteksi Menunduk: 
-                    const lookDownRatio = upperFaceDist / lowerFaceDist;
-
-                    // Threshold: Jika rasio lebih dari 1.3, berarti dia sedang menunduk
-                    if (lookDownRatio > 1.3) { 
-                        
-                        statusText.innerText = "Posisi Pas! Tahan...";
-                        statusText.classList.remove('bg-black', 'bg-red-500');
-                        statusText.classList.add('bg-green-600');
-                        
-                        speakText("Posisi menunduk pas. Tahan.");
-
-                        setTimeout(() => {
-                            if (!isCaptured) { takeSnapshot(); }
-                        }, 1200);
-
-                    } else {
-                         statusText.innerText = "Tundukkan wajah sedikit lagi...";
-                         statusText.classList.remove('bg-green-600');
-                         statusText.classList.add('bg-black');
-                         
-                         speakText("Tundukkan wajah sedikit lagi.");
-                    }
-
-                } else {
-                    statusText.innerText = "Wajah tidak terdeteksi...";
-                    statusText.classList.add('bg-black');
-                    
-                    lastSpokenText = "Wajah tidak terdeteksi...";
-                }
-            }, 350);
-        });
-
-        video.addEventListener('play', () => {
-            setTimeout(() => { speakText("Selanjutnya, silakan menundukkan wajah anda sedikit ke bawah."); }, 1000);
+            setTimeout(() => { speakText("Silakan menundukkan wajah anda sedikit ke bawah."); }, 1000);
 
             setInterval(async () => {
                 if (isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
@@ -191,41 +106,47 @@
                     const noseTip = landmarks.positions[30];
                     const chin = landmarks.positions[8];
                     const eyeCenterY = (leftEye.y + rightEye.y) / 2;
+                    
                     const upperFaceDist = Math.abs(noseTip.y - eyeCenterY);
                     const lowerFaceDist = Math.abs(chin.y - noseTip.y);
                     const lookDownRatio = upperFaceDist / lowerFaceDist;
 
-                    if (lookDownRatio > 1.3) { 
-                        statusText.innerText = `Mengambil bawah: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
+                    // Toleransi ratio disesuaikan agar lebih mudah terdeteksi
+                    if (lookDownRatio > 1.1) { 
+                        statusText.innerText = `Mengambil: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
                         statusText.classList.add('bg-green-600');
                         takeSnapshot();
                     } else {
                         statusText.innerText = "Tundukkan wajah sedikit lagi...";
                         statusText.classList.remove('bg-green-600');
-                        statusText.classList.add('bg-black');
                     }
+                } else {
+                    statusText.innerText = "Wajah tidak terdeteksi...";
                 }
-            }, 350);
+            }, 500);
         });
 
         function takeSnapshot() {
+            if(isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
+            
+            // Kompresi untuk menghindari QuotaExceededError
+            canvas.width = 300; 
+            canvas.height = 225;
             const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const dataURL = canvas.toDataURL('image/jpeg');
-            capturedPhotos.push(dataURL);
+            capturedPhotos.push(canvas.toDataURL('image/jpeg', 0.5));
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
                 isCaptured = true;
-                speakText("Foto menunduk selesai.");
-                localStorage.setItem('temp_down', JSON.stringify(capturedPhotos)); // Key: temp_down
-                setTimeout(() => {
-                    window.location.href = "{{ route('pendaftaran.form') }}"; // Redirect akhir
-                }, 1000);
+                localStorage.setItem('temp_down', JSON.stringify(capturedPhotos));
+                
+                const msg = new SpeechSynthesisUtterance("Foto menunduk selesai.");
+                msg.lang = 'id-ID';
+                msg.onend = () => { window.location.href = "{{ route('pendaftaran.form') }}"; };
+                window.speechSynthesis.speak(msg);
             }
         }
     </script>
