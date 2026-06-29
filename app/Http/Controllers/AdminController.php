@@ -24,17 +24,19 @@ class AdminController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Validasi Input (Sekarang menerima json_poses)
+        // 1. Validasi: Ubah 'json_poses' menjadi 'array' bukan 'string'
         $request->validate([
             'nama_lengkap'  => 'required|string|max:255',
             'nomor_telepon' => 'required|string|max:20',
-            'json_poses'    => 'required|string', 
+            'json_poses'    => 'required|array', // Pastikan ini array
         ]);
 
-        $poses = json_decode($request->json_poses, true);
+        // 2. Tidak perlu json_decode, karena Laravel otomatis mengonversi JSON request menjadi array
+        $poses = $request->json_poses; 
 
-        // 2. PROSES INTEGRASI KE AI SERVER (Port 8001 - Format JSON)
+        // 3. PROSES INTEGRASI KE AI SERVER
         try {
+            // Pastikan struktur pengiriman ke AI tetap sesuai yang diminta Python
             $response = Http::withoutVerifying()->timeout(120)
                 ->post('https://ai-cikita.rrlabs.web.id/api/register-face', [
                     'visitor_id' => Str::slug($request->nama_lengkap) . '-' . time(),
@@ -43,10 +45,8 @@ class AdminController extends Controller
 
             $data = $response->json();
 
-            // 3. Jika AI Berhasil Mendeteksi Wajah (Menerima 120 embeddings)
             if ($response->successful() && isset($data['success']) && $data['success'] == true) {
                 
-                // Ambil foto referensi dari data untuk disimpan secara lokal (ambil foto pertama dari setiap pose)
                 $saveBase64 = function($base64_string, $prefix) {
                     if (!$base64_string || strpos($base64_string, 'data:image') === false) return null;
                     $image_data = explode(',', $base64_string)[1];
@@ -63,18 +63,18 @@ class AdminController extends Controller
                     'foto_kanan'    => $saveBase64($poses['right'][0], 'kanan'),
                     'foto_mulut'    => $saveBase64($poses['mouth_open'][0], 'mulut'),
                     'foto_menunduk' => $saveBase64($poses['down'][0], 'menunduk'),
-                    'embedding'     => json_encode($data['embeddings']), // Menyimpan 120 embeddings
+                    'embedding'     => json_encode($data['embeddings']), 
                 ]);
 
-                return redirect()->route('pendaftaran.proses');
+                // KEMBALIKAN JSON (PENTING untuk frontend fetch)
+                return response()->json(['success' => true]);
             
             } else {
-                $msg = $data['message'] ?? 'Wajah tidak terdeteksi oleh AI.';
-                return back()->withInput()->withErrors(['ai_error' => $msg]);
+                return response()->json(['success' => false, 'message' => $data['message'] ?? 'AI Gagal deteksi wajah.'], 400);
             }
 
         } catch (\Exception $e) {
-            return back()->withInput()->withErrors(['ai_error' => 'Gagal terhubung ke AI: ' . $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 

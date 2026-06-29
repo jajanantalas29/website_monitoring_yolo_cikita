@@ -75,11 +75,12 @@
 
             // Harvest Data
             poses.forEach(pose => {
-                const data = localStorage.getItem('temp_' + (pose === 'mouth_open' ? 'mouth_open' : (pose === 'up' ? 'up' : (pose === 'down' ? 'down' : (pose === 'left' ? 'left' : (pose === 'right' ? 'right' : 'straight'))))));
+                const key = 'temp_' + (pose === 'mouth_open' ? 'mouth_open' : (pose === 'up' ? 'up' : (pose === 'down' ? 'down' : (pose === 'left' ? 'left' : (pose === 'right' ? 'right' : 'straight')))));
+                const data = localStorage.getItem(key);
                 if (data) {
                     allData[pose] = JSON.parse(data);
                     const img = document.getElementById('img-' + (pose === 'mouth_open' ? 'mouth' : pose));
-                    if(img) img.src = allData[pose][0]; // Preview foto pertama dari array
+                    if(img) img.src = allData[pose][0]; 
                 } else {
                     isComplete = false;
                 }
@@ -88,15 +89,52 @@
             if (isComplete) {
                 document.getElementById('btn-start-camera').classList.add('hidden');
                 document.getElementById('photo-grid').classList.remove('hidden');
-                document.getElementById('json_poses').value = JSON.stringify(allData);
             }
 
-            document.getElementById('btn-daftar').addEventListener('click', function() {
+            // PERBAIKAN: Menggunakan Fetch AJAX untuk kirim data agar tidak terpotong
+            document.getElementById('btn-daftar').addEventListener('click', async function() {
                 if (!isComplete) {
                     alert("Harap selesaikan pengambilan semua 6 pose wajah!");
                     return;
                 }
-                document.getElementById('registrationForm').submit();
+
+                const btn = document.getElementById('btn-daftar');
+                const originalText = btn.innerText;
+                
+                // Indikator loading
+                btn.innerText = "Sedang Memproses...";
+                btn.disabled = true;
+
+                try {
+                    const response = await fetch("{{ route('pendaftaran.store') }}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": document.querySelector('input[name="_token"]').value
+                        },
+                        body: JSON.stringify({
+                            nama_lengkap: document.getElementById('nama_lengkap').value,
+                            nomor_telepon: document.getElementById('nomor_telepon').value,
+                            json_poses: allData
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        // Jika sukses, arahkan ke halaman proses
+                        window.location.href = "pendaftaran/proses"; // Sesuaikan dengan route halaman proses anda
+                    } else {
+                        alert("Gagal menyimpan: " + (result.message || "Kesalahan server"));
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error("Error:", error);
+                    alert("Terjadi kesalahan koneksi.");
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
             });
         });
     </script>
