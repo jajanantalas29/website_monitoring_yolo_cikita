@@ -124,10 +124,8 @@
                     const mouthOpening = Math.abs(mouthBottom.y - mouthTop.y);
 
                     if (mouthOpening > 15) { 
-                        statusText.innerText = `Mengambil mulut: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
                         statusText.classList.remove('bg-black', 'bg-red-500');
                         statusText.classList.add('bg-green-600');
-                        
                         takeSnapshot();
                     } else {
                         statusText.innerText = "Buka mulut lebih lebar...";
@@ -143,7 +141,8 @@
         });
 
         function takeSnapshot() {
-            if(isCaptured) return;
+            // Guard clause ketat
+            if(isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
             
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
@@ -154,6 +153,8 @@
 
             const dataURL = canvas.toDataURL('image/jpeg');
             capturedPhotos.push(dataURL);
+            
+            statusText.innerText = `Mengambil mulut: ${capturedPhotos.length}/${MAX_PHOTOS}`;
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
                 isCaptured = true;
@@ -161,7 +162,6 @@
                 
                 localStorage.setItem('temp_mouth_open', JSON.stringify(capturedPhotos));
 
-                // FIX: Gunakan onend untuk memastikan navigasi hanya terjadi saat suara selesai
                 const successMsg = "Foto mulut selesai.";
                 const utterance = new SpeechSynthesisUtterance(successMsg);
                 utterance.lang = 'id-ID';
