@@ -97,7 +97,7 @@
             setInterval(async () => {
                 if (isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
 
-                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 })).withFaceLandmarks();
 
                 if (detections.length > 0) {
                     const landmarks = detections[0].landmarks;
