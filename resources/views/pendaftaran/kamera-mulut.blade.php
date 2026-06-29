@@ -61,7 +61,7 @@
         const statusText = document.getElementById('status-text');
         const btnCapture = document.getElementById('btn-capture');
         let isCaptured = false;
-        let intervalId; // Penambahan variabel untuk menghentikan interval
+        let intervalId; 
 
         // --- Sistem Text-to-Speech ---
         let lastSpokenText = "";
@@ -70,29 +70,17 @@
             if (window.speechSynthesis.resume) window.speechSynthesis.resume();
         }
         
-        function speakText(text, callback = null) {
-            if (!('speechSynthesis' in window)) {
-                if (callback) callback();
-                return;
+        function speakText(text) {
+            if ('speechSynthesis' in window && text !== lastSpokenText) {
+                window.speechSynthesis.cancel();
+                if (window.speechSynthesis.resume) window.speechSynthesis.resume();
+                lastSpokenText = text;
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.1;
+                window.speechSynthesis.speak(utterance);
             }
-
-            if (text === lastSpokenText && !callback) return;
-
-            window.speechSynthesis.cancel();
-            if (window.speechSynthesis.resume) window.speechSynthesis.resume();
-
-            lastSpokenText = text;
-
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'id-ID';
-            utterance.rate = 1.0;
-            utterance.pitch = 1.1;
-
-            if (callback) {
-                utterance.onend = callback;
-            }
-
-            window.speechSynthesis.speak(utterance);
         }
 
         // --- Variabel Baru untuk Multi-Capture ---
@@ -170,23 +158,19 @@
             if (capturedPhotos.length >= MAX_PHOTOS) {
                 isCaptured = true;
                 clearInterval(intervalId);
-
+                
                 localStorage.setItem('temp_mouth_open', JSON.stringify(capturedPhotos));
 
-                // Matikan kamera
-                if (video.srcObject) {
-                    video.srcObject.getTracks().forEach(track => track.stop());
-                }
-
-                const nextPage = () => {
+                // FIX: Gunakan onend untuk memastikan navigasi hanya terjadi saat suara selesai
+                const successMsg = "Foto mulut selesai.";
+                const utterance = new SpeechSynthesisUtterance(successMsg);
+                utterance.lang = 'id-ID';
+                utterance.onend = () => {
                     window.location.href = "{{ route('pendaftaran.kamera-mendongak') }}";
                 };
-
-                // Ucapkan lalu lanjut ke halaman berikut
-                speakText("Foto mulut selesai.", nextPage);
-
-                // Fallback jika browser tidak memanggil onend
-                setTimeout(nextPage, 3000);
+                
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.speak(utterance);
             }
         }
 
