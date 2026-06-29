@@ -44,11 +44,29 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const statusText = document.getElementById('status-text');
+        const btnCapture = document.getElementById('btn-capture');
         let capturedPhotos = []; 
         const MAX_PHOTOS = 20;
         let isCaptured = false;
+        let lastSpokenText = "";
 
-        // Bersihkan data lama saat mulai
+        // Fungsi Suara
+        function speakText(text) {
+            if ('speechSynthesis' in window && lastSpokenText !== text) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID';
+                window.speechSynthesis.speak(utterance);
+                lastSpokenText = text;
+            }
+        }
+
+        // Aktifkan suara dengan interaksi klik
+        btnCapture.addEventListener('click', () => {
+            window.speechSynthesis.resume();
+            speakText("Mulai proses.");
+        });
+
         localStorage.removeItem('temp_up');
 
         Promise.all([
@@ -63,6 +81,7 @@
         }
 
         video.addEventListener('play', () => {
+            speakText("Silahkan dongakkan wajah ke atas."); // Instruksi awal
             setInterval(async () => {
                 if (isCaptured) return;
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
@@ -74,12 +93,12 @@
                     const noseTip = landmarks.positions[30];
                     const eyeCenterY = (leftEye.y + rightEye.y) / 2;
                     
-                    // Logic mendongak (Hidung di bawah garis mata)
                     if (noseTip.y > eyeCenterY + 10) { 
                         statusText.innerText = `Mengambil: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
                         takeSnapshot();
                     } else {
                         statusText.innerText = "Dongakkan wajah ke atas...";
+                        speakText("Dongakkan wajah ke atas.");
                     }
                 } else {
                     statusText.innerText = "Wajah tidak terdeteksi...";
@@ -89,26 +108,25 @@
 
         function takeSnapshot() {
             if(isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
-            
-            // Perbaikan: Gunakan ukuran canvas lebih kecil untuk hemat memori
             canvas.width = 300; 
             canvas.height = 225;
             const context = canvas.getContext('2d');
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Perbaikan: Gunakan kompresi JPEG 0.5 (50%)
             capturedPhotos.push(canvas.toDataURL('image/jpeg', 0.5));
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
                 isCaptured = true;
-                try {
-                    localStorage.setItem('temp_up', JSON.stringify(capturedPhotos));
+                localStorage.setItem('temp_up', JSON.stringify(capturedPhotos));
+                
+                // Suara saat selesai
+                const endUtterance = new SpeechSynthesisUtterance("Foto mendongak selesai.");
+                endUtterance.lang = 'id-ID';
+                endUtterance.onend = () => {
                     window.location.href = "{{ route('pendaftaran.kamera-menunduk') }}";
-                } catch(e) {
-                    alert("Memori penuh, coba refresh halaman.");
-                }
+                };
+                window.speechSynthesis.speak(endUtterance);
             }
         }
     </script>
