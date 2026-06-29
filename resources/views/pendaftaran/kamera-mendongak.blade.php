@@ -9,25 +9,20 @@
 </head>
 <body class="bg-[#1f2937] min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-2xl flex flex-col">
-        
         <div class="bg-white rounded-[1.5rem] shadow-2xl p-4 sm:p-6 w-full mb-6">
-            
             <div class="relative w-full aspect-video sm:aspect-square md:aspect-video border-2 border-gray-500 rounded-2xl flex items-center justify-center bg-black overflow-hidden">
                 <video id="video" class="absolute inset-0 w-full h-full object-cover" autoplay muted playsinline></video>
                 <canvas id="canvas" class="hidden"></canvas>
-
                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="white" class="w-24 h-24 sm:w-32 sm:h-32 opacity-60">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5V6a3 3 0 013-3h1.5M16.5 3H18a3 3 0 013 3v1.5M21 16.5V18a3 3 0 01-3 3h-1.5M7.5 21H6a3 3 0 01-3-3v-1.5" stroke-width="1" class="opacity-80"/>
                     </svg>
                 </div>
-
                 <div id="status-text" class="absolute bottom-4 bg-black bg-opacity-70 text-white px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium z-20 transition-all duration-300">
-                    Memuat AI Landmarks...
+                    Memuat AI...
                 </div>
             </div>
-
             <div class="mt-6 text-center">
                 <p class="text-[#1f2937] text-base sm:text-xl font-bold tracking-tight px-2">
                     Pastikan wajah anda sedikit ke atas
@@ -53,22 +48,13 @@
         const MAX_PHOTOS = 20;
         let isCaptured = false;
 
-        // --- Sistem Text-to-Speech ---
-        function speakText(text) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'id-ID';
-                window.speechSynthesis.speak(utterance);
-            }
-        }
+        // Bersihkan data lama saat mulai
+        localStorage.removeItem('temp_up');
 
         Promise.all([
             faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
             faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
-        ]).then(startVideo).catch(err => {
-            statusText.innerText = "Gagal Load AI.";
-        });
+        ]).then(startVideo);
 
         function startVideo() {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
@@ -86,54 +72,43 @@
                     const leftEye = landmarks.positions[36];
                     const rightEye = landmarks.positions[45];
                     const noseTip = landmarks.positions[30];
-                    
-                    // Hitung posisi mata
                     const eyeCenterY = (leftEye.y + rightEye.y) / 2;
                     
-                    // DEBUG: Lihat angka di Console Browser (F12)
-                    // Jika noseTip.y > eyeCenterY, artinya hidung berada di bawah mata (Mendongak)
-                    console.log("Posisi Hidung (Y):", noseTip.y, "Posisi Mata (Y):", eyeCenterY);
-
-                    // LOGIKA DIPERBAIKI: 
-                    // Jika noseTip.y > eyeCenterY + 10, artinya hidung sudah di bawah garis mata.
-                    // Angka 10 adalah toleransi. Jika masih susah, kecilkan angkanya (misal jadi 5).
-                    const isLookingUp = (noseTip.y > eyeCenterY + 10); 
-
-                    if (isLookingUp) { 
-                        statusText.innerText = `Mengambil atas: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
-                        statusText.classList.add('bg-green-600');
+                    // Logic mendongak (Hidung di bawah garis mata)
+                    if (noseTip.y > eyeCenterY + 10) { 
+                        statusText.innerText = `Mengambil: ${capturedPhotos.length + 1}/${MAX_PHOTOS}`;
                         takeSnapshot();
                     } else {
-                        statusText.innerText = "Dongakkan wajah lebih ke atas...";
-                        statusText.classList.remove('bg-green-600');
-                        statusText.classList.add('bg-black');
+                        statusText.innerText = "Dongakkan wajah ke atas...";
                     }
                 } else {
                     statusText.innerText = "Wajah tidak terdeteksi...";
                 }
-            }, 500); 
+            }, 300);
         });
 
         function takeSnapshot() {
-            if(isCaptured) return;
+            if(isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
             
+            // Perbaikan: Gunakan ukuran canvas lebih kecil untuk hemat memori
+            canvas.width = 300; 
+            canvas.height = 225;
             const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            capturedPhotos.push(canvas.toDataURL('image/jpeg'));
+            
+            // Perbaikan: Gunakan kompresi JPEG 0.5 (50%)
+            capturedPhotos.push(canvas.toDataURL('image/jpeg', 0.5));
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
                 isCaptured = true;
-                localStorage.setItem('temp_up', JSON.stringify(capturedPhotos));
-                
-                const utterance = new SpeechSynthesisUtterance("Foto mendongak selesai.");
-                utterance.onend = () => {
+                try {
+                    localStorage.setItem('temp_up', JSON.stringify(capturedPhotos));
                     window.location.href = "{{ route('pendaftaran.kamera-menunduk') }}";
-                };
-                window.speechSynthesis.speak(utterance);
+                } catch(e) {
+                    alert("Memori penuh, coba refresh halaman.");
+                }
             }
         }
     </script>
