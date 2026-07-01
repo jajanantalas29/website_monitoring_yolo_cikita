@@ -80,6 +80,16 @@ class AdminController extends Controller
         }
     }
 
+    public function cekStatusPendaftaran($id)
+    {
+        $pelanggan = Pelanggan::findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'status' => $pelanggan->status_pendaftaran,
+            'message' => $pelanggan->pesan_error,
+        ]);
+    }
     public function edit($id)
     {
         $pelanggan = Pelanggan::findOrFail($id);

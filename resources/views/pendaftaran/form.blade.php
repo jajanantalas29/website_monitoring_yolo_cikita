@@ -118,12 +118,14 @@
                             json_poses: allData
                         })
                     });
+                    const contentType = response.headers.get("content-type") || "";
+                    const result = contentType.includes("application/json")
+                        ? await response.json()
+                        : { success: false, message: "Server tidak mengembalikan JSON. Kemungkinan terjadi timeout atau error server." };
 
-                    const result = await response.json();
-
-                    if (response.ok) {
-                        // Jika sukses, arahkan ke halaman proses
-                        window.location.href = "pendaftaran/proses"; // Sesuaikan dengan route halaman proses anda
+                    if (response.ok && result.success && result.pelanggan_id) {
+                        localStorage.clear();
+                        window.location.href = "{{ route('pendaftaran.proses') }}?id=" + encodeURIComponent(result.pelanggan_id);
                     } else {
                         alert("Gagal menyimpan: " + (result.message || "Kesalahan server"));
                         btn.innerText = originalText;
