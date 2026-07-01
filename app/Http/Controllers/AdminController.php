@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Pelanggan;
 use App\Models\Kartu;
+use App\Jobs\ProcessFaceRegistrationJob;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
@@ -60,8 +60,10 @@ class AdminController extends Controller
                 'pesan_error'          => null,
             ]);
 
-            // Proses AI akan dipindahkan ke background job pada langkah berikutnya.
-            // Tujuannya supaya request ini cepat selesai dan tidak terkena timeout 524.
+            $posesPath = 'face-registration-poses/' . $pelanggan->id . '.json';
+            Storage::disk('local')->put($posesPath, json_encode($poses));
+
+            ProcessFaceRegistrationJob::dispatch($pelanggan->id, $posesPath);
 
             return response()->json([
                 'success' => true,
