@@ -38,8 +38,8 @@ class AdminController extends Controller
         try {
             // Pastikan struktur pengiriman ke AI tetap sesuai yang diminta Python
             $response = Http::withoutVerifying()
-                ->connectTimeout(60) // Naikkan jadi 60 detik untuk koneksi awal
-                ->timeout(300)       // Naikkan jadi 300 detik (5 menit) untuk proses AI 120 foto
+                ->connectTimeout(120) // Naikkan jadi 120 detik untuk koneksi awal
+                ->timeout(600)       // Naikkan jadi 600 detik (10 menit) untuk proses AI 120 foto
                 ->post('https://ai-cikita.rrlabs.web.id/api/register-face', [
                     'visitor_id' => Str::slug($request->nama_lengkap) . '-' . time(),
                     'poses'      => $poses
