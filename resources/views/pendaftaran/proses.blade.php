@@ -40,9 +40,11 @@
     <script>
         const pelangganId = new URLSearchParams(window.location.search).get('id');
         const statusMessage = document.getElementById('status-message');
-        const statusUrlTemplate = "{{ route('pendaftaran.status', ['id' => '__ID__']) }}";
-        const berhasilUrl = "{{ route('pendaftaran.berhasil') }}";
-        const formUrl = "{{ route('pendaftaran.form') }}";
+        const statusUrlTemplate = '/pendaftaran/status/__ID__';
+        const berhasilUrl = '/pendaftaran/berhasil';
+        const formUrl = '/pendaftaran/form';
+        let jumlahCekStatus = 0;
+        const maksimalCekStatus = 120;
 
         if (!pelangganId) {
             alert('ID pendaftaran tidak ditemukan. Silakan ulangi pendaftaran.');
@@ -50,11 +52,20 @@
         }
 
         async function cekStatusPendaftaran() {
+            jumlahCekStatus++;
+
+            if (jumlahCekStatus > maksimalCekStatus) {
+                alert('Proses pendaftaran terlalu lama. Pastikan queue worker dan AI Server berjalan, lalu cek data pelanggan di admin.');
+                window.location.href = formUrl;
+                return;
+            }
+
             try {
                 const response = await fetch(statusUrlTemplate.replace('__ID__', encodeURIComponent(pelangganId)), {
                     headers: {
                         'Accept': 'application/json'
-                    }
+                    },
+                    cache: 'no-store'
                 });
 
                 const contentType = response.headers.get('content-type') || '';
