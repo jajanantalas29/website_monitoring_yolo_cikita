@@ -24,63 +24,57 @@ class AdminController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Validasi: Ubah 'json_poses' menjadi 'array' bukan 'string'
         $request->validate([
             'nama_lengkap'  => 'required|string|max:255',
             'nomor_telepon' => 'required|string|max:20',
-            'json_poses'    => 'required|array', // Pastikan ini array
+            'json_poses'    => 'required|array',
         ]);
 
-        // 2. Tidak perlu json_decode, karena Laravel otomatis mengonversi JSON request menjadi array
-        $poses = $request->json_poses; 
+        $poses = $request->json_poses;
 
-        // 3. PROSES INTEGRASI KE AI SERVER
         try {
-            // Pastikan struktur pengiriman ke AI tetap sesuai yang diminta Python
-            $response = Http::withoutVerifying()
-                ->connectTimeout(120) // Naikkan jadi 120 detik untuk koneksi awal
-                ->timeout(600)       // Naikkan jadi 600 detik (10 menit) untuk proses AI 120 foto
-                ->post('http://192.168.18.12:8001/api/register-face', [
-                    'visitor_id' => Str::slug($request->nama_lengkap) . '-' . time(),
-                    'poses'      => $poses
-                ]);
+            $saveBase64 = function ($base64_string, $prefix) {
+                if (!$base64_string || strpos($base64_string, 'data:image') === false) {
+                    return null;
+                }
 
-            $data = $response->json();
+                $image_data = explode(',', $base64_string)[1];
+                $fileName = $prefix . '_' . time() . '_' . Str::random(5) . '.jpg';
 
-            if ($response->successful() && isset($data['success']) && $data['success'] == true) {
-                
-                $saveBase64 = function($base64_string, $prefix) {
-                    if (!$base64_string || strpos($base64_string, 'data:image') === false) return null;
-                    $image_data = explode(',', $base64_string)[1];
-                    $fileName = $prefix . '_' . time() . '_' . Str::random(5) . '.jpg';
-                    Storage::disk('public')->put('wajah/' . $fileName, base64_decode($image_data));
-                    return $fileName;
-                };
+                Storage::disk('public')->put('wajah/' . $fileName, base64_decode($image_data));
 
-                Pelanggan::create([
-                    'nama_lengkap'   => $request->nama_lengkap,
-                    'nomor_telepon'  => $request->nomor_telepon,
-                    'foto_lurus'     => $saveBase64($poses['straight'][0], 'lurus'),
-                    'foto_kiri'      => $saveBase64($poses['left'][0], 'kiri'),
-                    'foto_kanan'     => $saveBase64($poses['right'][0], 'kanan'),
-                    'foto_mulut'     => $saveBase64($poses['mouth_open'][0], 'mulut'),
-                    'foto_menunduk'  => $saveBase64($poses['down'][0], 'menunduk'),
-                    'foto_mendongak' => $saveBase64($poses['up'][0], 'mendongak'), // PENAMBAHAN POSE MENDONGAK
-                    'embedding'      => json_encode($data['embeddings']), 
-                ]);
+                return $fileName;
+            };
 
-                // KEMBALIKAN JSON (PENTING untuk frontend fetch)
-                return response()->json(['success' => true]);
-            
-            } else {
-                return response()->json(['success' => false, 'message' => $data['message'] ?? 'AI Gagal deteksi wajah.'], 400);
-            }
+            $pelanggan = Pelanggan::create([
+                'nama_lengkap'         => $request->nama_lengkap,
+                'nomor_telepon'        => $request->nomor_telepon,
+                'foto_lurus'           => $saveBase64($poses['straight'][0] ?? null, 'lurus'),
+                'foto_kiri'            => $saveBase64($poses['left'][0] ?? null, 'kiri'),
+                'foto_kanan'           => $saveBase64($poses['right'][0] ?? null, 'kanan'),
+                'foto_mulut'           => $saveBase64($poses['mouth_open'][0] ?? null, 'mulut'),
+                'foto_menunduk'        => $saveBase64($poses['down'][0] ?? null, 'menunduk'),
+                'foto_mendongak'       => $saveBase64($poses['up'][0] ?? null, 'mendongak'),
+                'embedding'            => null,
+                'status_pendaftaran'   => 'sedang_diproses',
+                'pesan_error'          => null,
+            ]);
 
+            // Proses AI akan dipindahkan ke background job pada langkah berikutnya.
+            // Tujuannya supaya request ini cepat selesai dan tidak terkena timeout 524.
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data pendaftaran diterima dan sedang diproses.',
+                'pelanggan_id' => $pelanggan->id,
+            ]);
         } catch (\Exception $e) {
-            // Tambahkan log error ke laravel.log supaya kita bisa baca aslinya
             \Illuminate\Support\Facades\Log::error('Gagal Simpan Pendaftaran: ' . $e->getMessage());
-            
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
         }
     }
 
