@@ -56,14 +56,15 @@ class AdminController extends Controller
                 };
 
                 Pelanggan::create([
-                    'nama_lengkap'  => $request->nama_lengkap,
-                    'nomor_telepon' => $request->nomor_telepon,
-                    'foto_lurus'    => $saveBase64($poses['straight'][0], 'lurus'),
-                    'foto_kiri'     => $saveBase64($poses['left'][0], 'kiri'),
-                    'foto_kanan'    => $saveBase64($poses['right'][0], 'kanan'),
-                    'foto_mulut'    => $saveBase64($poses['mouth_open'][0], 'mulut'),
-                    'foto_menunduk' => $saveBase64($poses['down'][0], 'menunduk'),
-                    'embedding'     => json_encode($data['embeddings']), 
+                    'nama_lengkap'   => $request->nama_lengkap,
+                    'nomor_telepon'  => $request->nomor_telepon,
+                    'foto_lurus'     => $saveBase64($poses['straight'][0], 'lurus'),
+                    'foto_kiri'      => $saveBase64($poses['left'][0], 'kiri'),
+                    'foto_kanan'     => $saveBase64($poses['right'][0], 'kanan'),
+                    'foto_mulut'     => $saveBase64($poses['mouth_open'][0], 'mulut'),
+                    'foto_menunduk'  => $saveBase64($poses['down'][0], 'menunduk'),
+                    'foto_mendongak' => $saveBase64($poses['up'][0], 'mendongak'), // PENAMBAHAN POSE MENDONGAK
+                    'embedding'      => json_encode($data['embeddings']), 
                 ]);
 
                 // KEMBALIKAN JSON (PENTING untuk frontend fetch)
@@ -105,7 +106,8 @@ class AdminController extends Controller
             'wajah/' . $pelanggan->foto_kiri,
             'wajah/' . $pelanggan->foto_kanan,
             'wajah/' . $pelanggan->foto_mulut,
-            'wajah/' . $pelanggan->foto_menunduk
+            'wajah/' . $pelanggan->foto_menunduk,
+            'wajah/' . $pelanggan->foto_mendongak // PENAMBAHAN HAPUS FILE MENDONGAK
         ]);
         $pelanggan->delete();
         return redirect()->route('admin.pelanggan')->with('success', 'Data dihapus!');
@@ -179,9 +181,10 @@ class AdminController extends Controller
 
     public function detailPelanggaran($id)
     {
+        // PENAMBAHAN 'pelanggans.foto_mendongak' PADA SELECT
         $pelanggaran = DB::table('history_pelanggarans')
             ->leftJoin('pelanggans', 'history_pelanggarans.pelanggan_id', '=', 'pelanggans.id')
-            ->select('history_pelanggarans.*', 'pelanggans.nama_lengkap as nama', 'pelanggans.nomor_telepon', 'pelanggans.foto_lurus', 'pelanggans.foto_kiri', 'pelanggans.foto_kanan', 'pelanggans.foto_mulut', 'pelanggans.foto_menunduk')
+            ->select('history_pelanggarans.*', 'pelanggans.nama_lengkap as nama', 'pelanggans.nomor_telepon', 'pelanggans.foto_lurus', 'pelanggans.foto_kiri', 'pelanggans.foto_kanan', 'pelanggans.foto_mulut', 'pelanggans.foto_menunduk', 'pelanggans.foto_mendongak')
             ->where('history_pelanggarans.id', $id)
             ->first();
 
