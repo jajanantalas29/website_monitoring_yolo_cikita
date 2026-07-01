@@ -12,12 +12,14 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 class ProcessFaceRegistrationJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $timeout = 900;
+    public bool $failOnTimeout = true;
     public int $tries = 1;
 
     public function __construct(
@@ -89,5 +91,18 @@ class ProcessFaceRegistrationJob implements ShouldQueue
                 'pesan_error' => $e->getMessage(),
             ]);
         }
+    }
+    public function failed(?Throwable $exception): void
+    {
+        $pelanggan = Pelanggan::find($this->pelangganId);
+
+        if (!$pelanggan) {
+            return;
+        }
+
+        $pelanggan->update([
+            'status_pendaftaran' => 'gagal',
+            'pesan_error' => $exception?->getMessage() ?? 'Job AI pendaftaran wajah gagal diproses.',
+        ]);
     }
 }
