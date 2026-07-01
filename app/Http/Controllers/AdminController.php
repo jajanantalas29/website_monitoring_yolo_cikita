@@ -77,7 +77,10 @@ class AdminController extends Controller
             }
 
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            // Tambahkan log error ke laravel.log supaya kita bisa baca aslinya
+            \Illuminate\Support\Facades\Log::error('Gagal Simpan Pendaftaran: ' . $e->getMessage());
+            
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 
