@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sedang Diproses - Monitoring Pameran</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     @vite('resources/css/app.css')
@@ -41,21 +42,55 @@
         const pelangganId = new URLSearchParams(window.location.search).get('id');
         const statusMessage = document.getElementById('status-message');
         const statusUrlTemplate = '/pendaftaran/status/__ID__';
+        const processUrlTemplate = '/pendaftaran/proses-ai/__ID__';
         const berhasilUrl = '/pendaftaran/berhasil';
         const formUrl = '/pendaftaran/form';
         let jumlahCekStatus = 0;
         const maksimalCekStatus = 120;
+        let prosesAiDimulai = false;
 
         if (!pelangganId) {
             alert('ID pendaftaran tidak ditemukan. Silakan ulangi pendaftaran.');
             window.location.href = formUrl;
         }
 
+        async function mulaiProsesAi() {
+            if (prosesAiDimulai || !pelangganId) return;
+            prosesAiDimulai = true;
+            statusMessage.innerText = 'Mengirim 6 pose wajah ke AI. Mohon tunggu sampai proses selesai.';
+
+            try {
+                const response = await fetch(processUrlTemplate.replace('__ID__', encodeURIComponent(pelangganId)), {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    cache: 'no-store'
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                const result = contentType.includes('application/json')
+                    ? await response.json()
+                    : { success: false, message: 'Server tidak mengembalikan JSON.' };
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Gagal memulai proses AI.');
+                }
+
+                cekStatusPendaftaran();
+            } catch (error) {
+                console.error('Error proses AI:', error);
+                statusMessage.innerText = 'Gagal menghubungi AI. Sistem akan mengecek status ulang.';
+                setTimeout(cekStatusPendaftaran, 3000);
+            }
+        }
+
         async function cekStatusPendaftaran() {
             jumlahCekStatus++;
 
             if (jumlahCekStatus > maksimalCekStatus) {
-                alert('Proses pendaftaran terlalu lama. Pastikan queue worker dan AI Server berjalan, lalu cek data pelanggan di admin.');
+                alert('Proses pendaftaran terlalu lama. Pastikan AI Server berjalan di URL yang benar, lalu cek data pelanggan di admin.');
                 window.location.href = formUrl;
                 return;
             }
@@ -97,7 +132,8 @@
             }
         }
 
-        cekStatusPendaftaran();
+        mulaiProsesAi();
+        setTimeout(cekStatusPendaftaran, 3000);
     </script>
 
 </body>

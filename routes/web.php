@@ -17,6 +17,7 @@ Route::get('/pendaftaran/berhasil', function () {
 })->name('pendaftaran.berhasil');
 Route::post('/pendaftaran/simpan', [AdminController::class, 'store'])->name('pendaftaran.store');
 Route::get('/pendaftaran/status/{id}', [AdminController::class, 'cekStatusPendaftaran'])->name('pendaftaran.status');
+Route::post('/pendaftaran/proses-ai/{id}', [AdminController::class, 'prosesPendaftaranAi'])->name('pendaftaran.proses-ai');
 
 // Routes Kamera
 Route::get('/pendaftaran/kamera', function () { return view('pendaftaran.kamera'); })->name('pendaftaran.kamera');

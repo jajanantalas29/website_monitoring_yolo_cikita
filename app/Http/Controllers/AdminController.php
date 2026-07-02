@@ -63,7 +63,7 @@ class AdminController extends Controller
             $posesPath = 'face-registration-poses/' . $pelanggan->id . '.json';
             Storage::disk('local')->put($posesPath, json_encode($poses));
 
-            ProcessFaceRegistrationJob::dispatch($pelanggan->id, $posesPath);
+            // Pemrosesan AI dimulai dari halaman proses agar tidak bergantung pada queue worker.
 
             return response()->json([
                 'success' => true,
@@ -83,6 +83,35 @@ class AdminController extends Controller
     public function cekStatusPendaftaran($id)
     {
         $pelanggan = Pelanggan::findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'status' => $pelanggan->status_pendaftaran,
+            'message' => $pelanggan->pesan_error,
+        ]);
+    }
+
+    public function prosesPendaftaranAi($id)
+    {
+        $pelanggan = Pelanggan::findOrFail($id);
+
+        if (in_array($pelanggan->status_pendaftaran, ['berhasil', 'gagal'], true)) {
+            return response()->json([
+                'success' => true,
+                'status' => $pelanggan->status_pendaftaran,
+                'message' => $pelanggan->pesan_error,
+            ]);
+        }
+
+        $posesPath = 'face-registration-poses/' . $pelanggan->id . '.json';
+
+        $pelanggan->update([
+            'status_pendaftaran' => 'memproses_ai',
+            'pesan_error' => null,
+        ]);
+
+        (new ProcessFaceRegistrationJob($pelanggan->id, $posesPath))->handle();
+        $pelanggan->refresh();
 
         return response()->json([
             'success' => true,

@@ -60,7 +60,7 @@ class ProcessFaceRegistrationJob implements ShouldQueue
             $response = Http::withoutVerifying()
                 ->connectTimeout(120)
                 ->timeout(600)
-                ->post('http://192.168.18.12:8001/api/register-face', [
+                ->post(config('services.face_ai.register_url'), [
                     'visitor_id' => Str::slug($pelanggan->nama_lengkap) . '-' . $pelanggan->id,
                     'poses' => $poses,
                 ]);
