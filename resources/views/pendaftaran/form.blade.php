@@ -63,81 +63,141 @@
     </div>
 
     <script>
+        const poseConfig = [
+            { name: 'straight', key: 'temp_straight', imgId: 'img-straight' },
+            { name: 'left', key: 'temp_left', imgId: 'img-left' },
+            { name: 'right', key: 'temp_right', imgId: 'img-right' },
+            { name: 'mouth_open', key: 'temp_mouth_open', imgId: 'img-mouth' },
+            { name: 'up', key: 'temp_up', imgId: 'img-up' },
+            { name: 'down', key: 'temp_down', imgId: 'img-down' },
+        ];
+
+        let capturedPoseData = {};
+        let capturedPoseComplete = false;
+
         function resetPhotos() {
-            localStorage.clear();
+            poseConfig.forEach(pose => localStorage.removeItem(pose.key));
             window.location.reload();
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
-            const poses = ['straight', 'left', 'right', 'mouth_open', 'up', 'down'];
-            let allData = {};
+        function readCapturedPoses() {
+            const allData = {};
             let isComplete = true;
 
-            // Harvest Data
-            poses.forEach(pose => {
-                const key = 'temp_' + (pose === 'mouth_open' ? 'mouth_open' : (pose === 'up' ? 'up' : (pose === 'down' ? 'down' : (pose === 'left' ? 'left' : (pose === 'right' ? 'right' : 'straight')))));
-                const data = localStorage.getItem(key);
-                if (data) {
-                    allData[pose] = JSON.parse(data);
-                    const img = document.getElementById('img-' + (pose === 'mouth_open' ? 'mouth' : pose));
-                    if(img) img.src = allData[pose][0]; 
-                } else {
+            poseConfig.forEach(pose => {
+                const rawData = localStorage.getItem(pose.key);
+                const img = document.getElementById(pose.imgId);
+
+                if (!rawData) {
                     isComplete = false;
-                }
-            });
-
-            if (isComplete) {
-                document.getElementById('btn-start-camera').classList.add('hidden');
-                document.getElementById('photo-grid').classList.remove('hidden');
-            }
-
-            // PERBAIKAN: Menggunakan Fetch AJAX untuk kirim data agar tidak terpotong
-            document.getElementById('btn-daftar').addEventListener('click', async function() {
-                if (!isComplete) {
-                    alert("Harap selesaikan pengambilan semua 6 pose wajah!");
+                    if (img) img.removeAttribute('src');
                     return;
                 }
 
-                const btn = document.getElementById('btn-daftar');
-                const originalText = btn.innerText;
-                
-                // Indikator loading
-                btn.innerText = "Sedang Memproses...";
-                btn.disabled = true;
-
                 try {
-                    const response = await fetch("{{ route('pendaftaran.store') }}", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRF-TOKEN": document.querySelector('input[name="_token"]').value
-                        },
-                        body: JSON.stringify({
-                            nama_lengkap: document.getElementById('nama_lengkap').value,
-                            nomor_telepon: document.getElementById('nomor_telepon').value,
-                            json_poses: allData
-                        })
-                    });
-                    const contentType = response.headers.get("content-type") || "";
-                    const result = contentType.includes("application/json")
-                        ? await response.json()
-                        : { success: false, message: "Server tidak mengembalikan JSON. Kemungkinan terjadi timeout atau error server." };
+                    const parsedData = JSON.parse(rawData);
 
-                    if (response.ok && result.success && result.pelanggan_id) {
-                        localStorage.clear();
-                        window.location.href = "{{ route('pendaftaran.proses') }}?id=" + encodeURIComponent(result.pelanggan_id);
-                    } else {
-                        alert("Gagal menyimpan: " + (result.message || "Kesalahan server"));
-                        btn.innerText = originalText;
-                        btn.disabled = false;
+                    if (!Array.isArray(parsedData) || parsedData.length === 0 || !parsedData[0]) {
+                        isComplete = false;
+                        if (img) img.removeAttribute('src');
+                        return;
                     }
+
+                    allData[pose.name] = parsedData;
+                    if (img) img.src = parsedData[0];
                 } catch (error) {
-                    console.error("Error:", error);
-                    alert("Terjadi kesalahan koneksi.");
+                    console.error('Data pose rusak:', pose.key, error);
+                    localStorage.removeItem(pose.key);
+                    isComplete = false;
+                    if (img) img.removeAttribute('src');
+                }
+            });
+
+            capturedPoseData = allData;
+            capturedPoseComplete = isComplete;
+
+            const startCameraButton = document.getElementById('btn-start-camera');
+            const photoGrid = document.getElementById('photo-grid');
+
+            if (capturedCount > 0) {
+                photoGrid.classList.remove('hidden');
+                photoGrid.classList.add('grid');
+            } else {
+                photoGrid.classList.add('hidden');
+                photoGrid.classList.remove('grid');
+            }
+
+            if (capturedPoseComplete) {
+                startCameraButton.classList.add('hidden');
+            } else {
+                startCameraButton.classList.remove('hidden');
+            }
+
+            return capturedPoseComplete;
+        }
+
+        async function submitRegistration() {
+            if (!readCapturedPoses()) {
+                alert("Harap selesaikan pengambilan semua 6 pose wajah!");
+                return;
+            }
+
+            const btn = document.getElementById('btn-daftar');
+            const originalText = btn.innerText;
+
+            btn.innerText = "Sedang Memproses...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch("{{ route('pendaftaran.store') }}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "X-CSRF-TOKEN": document.querySelector('input[name="_token"]').value
+                    },
+                    body: JSON.stringify({
+                        nama_lengkap: document.getElementById('nama_lengkap').value,
+                        nomor_telepon: document.getElementById('nomor_telepon').value,
+                        json_poses: capturedPoseData
+                    })
+                });
+
+                const contentType = response.headers.get("content-type") || "";
+                const result = contentType.includes("application/json")
+                    ? await response.json()
+                    : { success: false, message: "Server tidak mengembalikan JSON. Kemungkinan terjadi timeout atau error server." };
+
+                if (response.ok && result.success && result.pelanggan_id) {
+                    resetPhotosOnly();
+                    window.location.href = "{{ route('pendaftaran.proses') }}?id=" + encodeURIComponent(result.pelanggan_id);
+                } else {
+                    alert("Gagal menyimpan: " + (result.message || "Kesalahan server"));
                     btn.innerText = originalText;
                     btn.disabled = false;
                 }
-            });
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Terjadi kesalahan koneksi.");
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function resetPhotosOnly() {
+            poseConfig.forEach(pose => localStorage.removeItem(pose.key));
+        }
+
+        function initializeForm() {
+            readCapturedPoses();
+            document.getElementById('btn-daftar').removeEventListener('click', submitRegistration);
+            document.getElementById('btn-daftar').addEventListener('click', submitRegistration);
+        }
+
+        document.addEventListener("DOMContentLoaded", initializeForm);
+        window.addEventListener("pageshow", readCapturedPoses);
+        document.addEventListener("visibilitychange", function() {
+            if (!document.hidden) readCapturedPoses();
         });
     </script>
 </body>
