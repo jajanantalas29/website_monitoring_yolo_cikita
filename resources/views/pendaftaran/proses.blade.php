@@ -45,13 +45,35 @@
         const processUrlTemplate = '/pendaftaran/proses-ai/__ID__';
         const berhasilUrl = '/pendaftaran/berhasil';
         const formUrl = '/pendaftaran/form';
-        let jumlahCekStatus = 0;
-        const maksimalCekStatus = 120;
         let prosesAiDimulai = false;
+        let statusTimer = null;
 
         if (!pelangganId) {
             alert('ID pendaftaran tidak ditemukan. Silakan ulangi pendaftaran.');
             window.location.href = formUrl;
+        }
+
+        function jadwalkanCekStatus(delay = 3000) {
+            if (statusTimer) {
+                clearTimeout(statusTimer);
+            }
+
+            statusTimer = setTimeout(cekStatusPendaftaran, delay);
+        }
+
+        function prosesStatus(result) {
+            if (result.status === 'berhasil') {
+                window.location.href = berhasilUrl;
+                return true;
+            }
+
+            if (result.status === 'gagal') {
+                alert('Pendaftaran gagal: ' + (result.message || 'AI gagal memproses wajah.'));
+                window.location.href = formUrl;
+                return true;
+            }
+
+            return false;
         }
 
         async function mulaiProsesAi() {
@@ -78,23 +100,17 @@
                     throw new Error(result.message || 'Gagal memulai proses AI.');
                 }
 
-                cekStatusPendaftaran();
+                if (!prosesStatus(result)) {
+                    cekStatusPendaftaran();
+                }
             } catch (error) {
                 console.error('Error proses AI:', error);
-                statusMessage.innerText = 'Gagal menghubungi AI. Sistem akan mengecek status ulang.';
-                setTimeout(cekStatusPendaftaran, 3000);
+                statusMessage.innerText = 'Sistem sedang mengecek hasil pendaftaran. Mohon tunggu sebentar.';
+                jadwalkanCekStatus(3000);
             }
         }
 
         async function cekStatusPendaftaran() {
-            jumlahCekStatus++;
-
-            if (jumlahCekStatus > maksimalCekStatus) {
-                alert('Proses pendaftaran terlalu lama. Pastikan AI Server berjalan di URL yang benar, lalu cek data pelanggan di admin.');
-                window.location.href = formUrl;
-                return;
-            }
-
             try {
                 const response = await fetch(statusUrlTemplate.replace('__ID__', encodeURIComponent(pelangganId)), {
                     headers: {
@@ -112,28 +128,20 @@
                     throw new Error(result.message || 'Gagal mengecek status pendaftaran.');
                 }
 
-                if (result.status === 'berhasil') {
-                    window.location.href = berhasilUrl;
-                    return;
-                }
-
-                if (result.status === 'gagal') {
-                    alert('Pendaftaran gagal: ' + (result.message || 'AI gagal memproses wajah.'));
-                    window.location.href = formUrl;
+                if (prosesStatus(result)) {
                     return;
                 }
 
                 statusMessage.innerText = 'Data wajah masih diproses. Mohon tunggu sebentar.';
-                setTimeout(cekStatusPendaftaran, 3000);
+                jadwalkanCekStatus(3000);
             } catch (error) {
                 console.error('Error:', error);
-                statusMessage.innerText = 'Koneksi sedang tidak stabil. Sistem akan mencoba mengecek ulang.';
-                setTimeout(cekStatusPendaftaran, 5000);
+                statusMessage.innerText = 'Sistem sedang mengecek hasil pendaftaran. Mohon tunggu sebentar.';
+                jadwalkanCekStatus(5000);
             }
         }
 
         mulaiProsesAi();
-        setTimeout(cekStatusPendaftaran, 3000);
     </script>
 
 </body>
