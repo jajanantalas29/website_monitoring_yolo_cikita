@@ -103,18 +103,37 @@
             }, 300);
         });
 
+
+        function savePoseToStorage(key, photos) {
+            try {
+                localStorage.setItem(key, JSON.stringify(photos));
+                return true;
+            } catch (error) {
+                console.error('Storage penuh:', key, error);
+
+                try {
+                    const reducedPhotos = photos.slice(-10);
+                    localStorage.setItem(key, JSON.stringify(reducedPhotos));
+                    return true;
+                } catch (retryError) {
+                    console.error('Storage tetap gagal:', key, retryError);
+                    alert('Penyimpanan foto di HP penuh. Tekan Batal lalu ulangi pengambilan foto.');
+                    return false;
+                }
+            }
+        }
         function takeSnapshot() {
             // Penguncian ganda untuk mencegah eksekusi berlebih
             if (isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
             
             const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            canvas.width = 300;
+            canvas.height = 225;
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const dataURL = canvas.toDataURL('image/jpeg');
+            const dataURL = canvas.toDataURL('image/jpeg', 0.5);
             capturedPhotos.push(dataURL);
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
@@ -122,11 +141,7 @@
                 clearInterval(intervalId); // Hentikan loop segera
                 speakText("Foto kanan selesai.");
                 
-                try {
-                    localStorage.setItem('temp_right', JSON.stringify(capturedPhotos));
-                } catch (e) {
-                    console.error("Storage Full:", e);
-                }
+                if (!savePoseToStorage('temp_right', capturedPhotos)) return;
 
                 setTimeout(() => {
                     window.location.assign("{{ route('pendaftaran.kamera-mulut') }}");

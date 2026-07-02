@@ -106,6 +106,25 @@
             }, 300);
         });
 
+
+        function savePoseToStorage(key, photos) {
+            try {
+                localStorage.setItem(key, JSON.stringify(photos));
+                return true;
+            } catch (error) {
+                console.error('Storage penuh:', key, error);
+
+                try {
+                    const reducedPhotos = photos.slice(-10);
+                    localStorage.setItem(key, JSON.stringify(reducedPhotos));
+                    return true;
+                } catch (retryError) {
+                    console.error('Storage tetap gagal:', key, retryError);
+                    alert('Penyimpanan foto di HP penuh. Tekan Batal lalu ulangi pengambilan foto.');
+                    return false;
+                }
+            }
+        }
         function takeSnapshot() {
             if(isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
             canvas.width = 300; 
@@ -118,7 +137,7 @@
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
                 isCaptured = true;
-                localStorage.setItem('temp_up', JSON.stringify(capturedPhotos));
+                if (!savePoseToStorage('temp_up', capturedPhotos)) return;
                 
                 // Suara saat selesai
                 const endUtterance = new SpeechSynthesisUtterance("Foto mendongak selesai.");

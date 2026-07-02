@@ -148,16 +148,35 @@
             }, 300);
         });
 
+
+        function savePoseToStorage(key, photos) {
+            try {
+                localStorage.setItem(key, JSON.stringify(photos));
+                return true;
+            } catch (error) {
+                console.error('Storage penuh:', key, error);
+
+                try {
+                    const reducedPhotos = photos.slice(-10);
+                    localStorage.setItem(key, JSON.stringify(reducedPhotos));
+                    return true;
+                } catch (retryError) {
+                    console.error('Storage tetap gagal:', key, retryError);
+                    alert('Penyimpanan foto di HP penuh. Tekan Batal lalu ulangi pengambilan foto.');
+                    return false;
+                }
+            }
+        }
         function takeSnapshot() {
             const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            canvas.width = 300;
+            canvas.height = 225;
             
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const dataURL = canvas.toDataURL('image/jpeg');
+            const dataURL = canvas.toDataURL('image/jpeg', 0.5);
             capturedPhotos.push(dataURL);
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
@@ -165,7 +184,7 @@
                 speakText("Foto kiri selesai.");
                 
                 // Simpan ke localStorage dengan key 'temp_left' sesuai dokumentasi baru
-                localStorage.setItem('temp_left', JSON.stringify(capturedPhotos));
+                if (!savePoseToStorage('temp_left', capturedPhotos)) return;
 
                 setTimeout(() => {
                     window.location.href = "{{ route('pendaftaran.kamera-kanan') }}";

@@ -83,6 +83,7 @@
         function readCapturedPoses() {
             const allData = {};
             let isComplete = true;
+            let capturedCount = 0;
 
             poseConfig.forEach(pose => {
                 const rawData = localStorage.getItem(pose.key);
@@ -104,6 +105,7 @@
                     }
 
                     allData[pose.name] = parsedData;
+                    capturedCount++;
                     if (img) img.src = parsedData[0];
                 } catch (error) {
                     console.error('Data pose rusak:', pose.key, error);

@@ -142,6 +142,25 @@
             }, 350);
         });
 
+
+        function savePoseToStorage(key, photos) {
+            try {
+                localStorage.setItem(key, JSON.stringify(photos));
+                return true;
+            } catch (error) {
+                console.error('Storage penuh:', key, error);
+
+                try {
+                    const reducedPhotos = photos.slice(-10);
+                    localStorage.setItem(key, JSON.stringify(reducedPhotos));
+                    return true;
+                } catch (retryError) {
+                    console.error('Storage tetap gagal:', key, retryError);
+                    alert('Penyimpanan foto di HP penuh. Tekan Batal lalu ulangi pengambilan foto.');
+                    return false;
+                }
+            }
+        }
         function takeSnapshot() {
             // Guard clause ketat
             if(isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
@@ -162,20 +181,7 @@
                 isCaptured = true;
                 clearInterval(intervalId);
                 
-                try {
-                    localStorage.setItem('temp_mouth_open', JSON.stringify(capturedPhotos));
-                } catch (e) {
-                    console.error("Storage Full:", e);
-                    statusText.innerText = "Penyimpanan HP penuh. Mengurangi ukuran foto...";
-
-                    const reducedPhotos = capturedPhotos.slice(-10);
-
-                    try {
-                        localStorage.setItem('temp_mouth_open', JSON.stringify(reducedPhotos));
-                    } catch (retryError) {
-                        console.error("Storage tetap gagal:", retryError);
-                    }
-                }
+                if (!savePoseToStorage('temp_mouth_open', capturedPhotos)) return;
 
                 const successMsg = "Foto mulut selesai.";
 

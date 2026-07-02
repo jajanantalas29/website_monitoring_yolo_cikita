@@ -134,16 +134,35 @@
         });
 
         // 4. Fungsi Capture (Modifikasi untuk Looping)
+
+        function savePoseToStorage(key, photos) {
+            try {
+                localStorage.setItem(key, JSON.stringify(photos));
+                return true;
+            } catch (error) {
+                console.error('Storage penuh:', key, error);
+
+                try {
+                    const reducedPhotos = photos.slice(-10);
+                    localStorage.setItem(key, JSON.stringify(reducedPhotos));
+                    return true;
+                } catch (retryError) {
+                    console.error('Storage tetap gagal:', key, retryError);
+                    alert('Penyimpanan foto di HP penuh. Tekan Batal lalu ulangi pengambilan foto.');
+                    return false;
+                }
+            }
+        }
         function takeSnapshot() {
             const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            canvas.width = 300;
+            canvas.height = 225;
             
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const dataURL = canvas.toDataURL('image/jpeg');
+            const dataURL = canvas.toDataURL('image/jpeg', 0.5);
             // Simpan ke array
             capturedPhotos.push(dataURL);
 
@@ -153,7 +172,7 @@
                 speakText("Foto wajah lurus selesai.");
                 
                 // Simpan ke localStorage sebagai objek array untuk dikirim nanti
-                localStorage.setItem('temp_straight', JSON.stringify(capturedPhotos));
+                if (!savePoseToStorage('temp_straight', capturedPhotos)) return;
 
                 setTimeout(() => {
                     window.location.href = "{{ route('pendaftaran.kamera-kiri') }}"; 

@@ -126,6 +126,25 @@
             }, 500);
         });
 
+
+        function savePoseToStorage(key, photos) {
+            try {
+                localStorage.setItem(key, JSON.stringify(photos));
+                return true;
+            } catch (error) {
+                console.error('Storage penuh:', key, error);
+
+                try {
+                    const reducedPhotos = photos.slice(-10);
+                    localStorage.setItem(key, JSON.stringify(reducedPhotos));
+                    return true;
+                } catch (retryError) {
+                    console.error('Storage tetap gagal:', key, retryError);
+                    alert('Penyimpanan foto di HP penuh. Tekan Batal lalu ulangi pengambilan foto.');
+                    return false;
+                }
+            }
+        }
         function takeSnapshot() {
             if(isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
             
@@ -141,7 +160,7 @@
 
             if (capturedPhotos.length >= MAX_PHOTOS) {
                 isCaptured = true;
-                localStorage.setItem('temp_down', JSON.stringify(capturedPhotos));
+                if (!savePoseToStorage('temp_down', capturedPhotos)) return;
                 
                 const msg = new SpeechSynthesisUtterance("Foto menunduk selesai.");
                 msg.lang = 'id-ID';
