@@ -86,6 +86,8 @@
         // --- Variabel Baru untuk Multi-Capture ---
         let capturedPhotos = []; 
         const MAX_PHOTOS = 20;
+        const nextUrl = "{{ route('pendaftaran.kamera-mendongak') }}";
+        let hasRedirected = false;
 
         Promise.all([
             faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
@@ -145,13 +147,13 @@
             if(isCaptured || capturedPhotos.length >= MAX_PHOTOS) return;
             
             const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            canvas.width = 300;
+            canvas.height = 225;
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const dataURL = canvas.toDataURL('image/jpeg');
+            const dataURL = canvas.toDataURL('image/jpeg', 0.5);
             capturedPhotos.push(dataURL);
             
             statusText.innerText = `Mengambil mulut: ${capturedPhotos.length}/${MAX_PHOTOS}`;
@@ -160,18 +162,44 @@
                 isCaptured = true;
                 clearInterval(intervalId);
                 
-                localStorage.setItem('temp_mouth_open', JSON.stringify(capturedPhotos));
+                try {
+                    localStorage.setItem('temp_mouth_open', JSON.stringify(capturedPhotos));
+                } catch (e) {
+                    console.error("Storage Full:", e);
+                    statusText.innerText = "Penyimpanan HP penuh. Mengurangi ukuran foto...";
+
+                    const reducedPhotos = capturedPhotos.slice(-10);
+
+                    try {
+                        localStorage.setItem('temp_mouth_open', JSON.stringify(reducedPhotos));
+                    } catch (retryError) {
+                        console.error("Storage tetap gagal:", retryError);
+                    }
+                }
 
                 const successMsg = "Foto mulut selesai.";
-                const utterance = new SpeechSynthesisUtterance(successMsg);
-                utterance.lang = 'id-ID';
-                utterance.onend = () => {
-                    window.location.href = "{{ route('pendaftaran.kamera-mendongak') }}";
-                };
-                
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(utterance);
+
+                if ('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window) {
+                    const utterance = new SpeechSynthesisUtterance(successMsg);
+                    utterance.lang = 'id-ID';
+                    utterance.onend = goToNextPage;
+                    window.speechSynthesis.cancel();
+                    window.speechSynthesis.speak(utterance);
+                }
+
+                setTimeout(goToNextPage, 1200);
             }
+        }
+
+        function goToNextPage() {
+            if (hasRedirected) return;
+            hasRedirected = true;
+
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+
+            window.location.assign(nextUrl);
         }
 
         btnCapture.addEventListener('click', () => {
