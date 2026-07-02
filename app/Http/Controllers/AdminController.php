@@ -95,7 +95,7 @@ class AdminController extends Controller
     {
         $pelanggan = Pelanggan::findOrFail($id);
 
-        if (in_array($pelanggan->status_pendaftaran, ['berhasil', 'gagal'], true)) {
+        if ($pelanggan->status_pendaftaran === 'berhasil') {
             return response()->json([
                 'success' => true,
                 'status' => $pelanggan->status_pendaftaran,
