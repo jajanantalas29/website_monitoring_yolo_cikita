@@ -69,7 +69,8 @@ class ProcessFaceRegistrationJob implements ShouldQueue
 
             if ($response->successful() && isset($data['success']) && $data['success'] === true) {
                 $pelanggan->update([
-                    'embedding' => $data['embeddings'] ?? null,
+                    // PERBAIKAN: Ubah 'embeddings' menjadi 'all_embeddings' dan bungkus dengan json_encode
+                    'embedding' => isset($data['all_embeddings']) ? json_encode($data['all_embeddings']) : null,
                     'status_pendaftaran' => 'berhasil',
                     'pesan_error' => null,
                 ]);
@@ -92,6 +93,7 @@ class ProcessFaceRegistrationJob implements ShouldQueue
             ]);
         }
     }
+    
     public function failed(?Throwable $exception): void
     {
         $pelanggan = Pelanggan::find($this->pelangganId);
