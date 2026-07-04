@@ -15,24 +15,19 @@ class ApiController extends Controller
             $pelanggan = DB::table('pelanggans')
                 ->join('kartus', 'pelanggans.id', '=', 'kartus.pelanggan_id')
                 ->whereNotNull('pelanggans.embedding') 
-                ->where('pelanggans.status_ruangan', 'di_dalam') // DIKEMBALIKAN: Hanya mengambil status 'di_dalam' sesuai permintaan
+                // FILTER DIHAPUS: AI harus tahu siapa saja yang terdaftar agar bisa mengenali saat mereka mau masuk
                 ->select(
                     'pelanggans.id', 
                     'pelanggans.nama_lengkap', 
                     'pelanggans.embedding', 
-                    'kartus.uid_kartu'
+                    'kartus.uid_kartu',
+                    'pelanggans.status_ruangan' // Tambahkan ini jika ingin Python memfilter logika sendiri
                 )
                 ->get();
 
-            return response()->json([
-                'success' => true, 
-                'data' => $pelanggan
-            ]);
+            return response()->json(['success' => true, 'data' => $pelanggan]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false, 
-                'message' => $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
