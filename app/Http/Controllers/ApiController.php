@@ -8,16 +8,14 @@ use Illuminate\Support\Facades\Storage;
 
 class ApiController extends Controller
 {
-    // 1. Endpoint untuk memberikan data "Ingatan Wajah" ke AI
+    // 1. Endpoint untuk memberikan data "Ingatan Wajah" ke AI (Node 1 & Node 2)
     public function getEmbeddings()
     {
         try {
             $pelanggan = DB::table('pelanggans')
-                // Menghubungkan tabel pelanggans dengan tabel kartus
-                // Asumsi: di tabel pelanggans ada kolom 'id' dan di tabel kartus ada kolom 'pelanggan_id'
                 ->join('kartus', 'pelanggans.id', '=', 'kartus.pelanggan_id')
-                ->whereNotNull('pelanggans.embedding') // Pastikan sudah ada data wajah
-                ->where('pelanggans.status_ruangan', 'di_dalam') // Hanya yang statusnya sedang di dalam
+                ->whereNotNull('pelanggans.embedding') 
+                ->where('pelanggans.status_ruangan', 'di_dalam') // DIKEMBALIKAN: Hanya mengambil status 'di_dalam' sesuai permintaan
                 ->select(
                     'pelanggans.id', 
                     'pelanggans.nama_lengkap', 
@@ -38,37 +36,60 @@ class ApiController extends Controller
         }
     }
 
-    // 2. Endpoint untuk menerima laporan foto pelanggaran dari AI
+    // 2. Endpoint untuk menerima laporan foto pelanggaran dari AI (Node 1 Lukisan)
     public function saveViolation(Request $request)
     {
         try {
-            // Ambil data yang dikirim oleh Python
             $waktu = $request->waktu;
             $status = $request->status;
             $pelanggan_id = $request->pelanggan_id;
-            $foto_base64 = $request->foto_base64; // Foto dikirim dalam bentuk teks sandi
-            
-            // TAMBAHAN: Tangkap data nomor kamera dari Python
+            $foto_base64 = $request->foto_base64; 
             $kamera = $request->kamera; 
 
             $filename = 'violation_' . time() . '.jpg';
             
-            // Terjemahkan sandi base64 kembali menjadi file foto fisik
             $foto_data = base64_decode($foto_base64);
             Storage::disk('public')->put('violation_images/' . $filename, $foto_data);
 
-            // Masukkan ke Database MySQL
             DB::table('history_pelanggarans')->insert([
                 'pelanggan_id' => $pelanggan_id,
                 'waktu' => $waktu,
                 'gambar_bukti' => 'violation_images/' . $filename,
                 'status' => $status,
-                'kamera' => $kamera ?? null, // TAMBAHAN: Masukkan ke kolom kamera (jika kosong, isi dengan null)
+                'kamera' => $kamera ?? null, 
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
-            return response()->json(['success' => true, 'message' => 'Pelanggaran sukses dicatat di Server Kontrakan!']);
+            return response()->json(['success' => true, 'message' => 'Pelanggaran sukses dicatat di Server!']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // 3. Endpoint untuk mengubah status ruangan (Node 2 Pintu)
+    public function updateAccessStatus(Request $request)
+    {
+        try {
+            $pelanggan_id = $request->pelanggan_id;
+            $status_ruangan = $request->status_ruangan;
+
+            if (!$pelanggan_id) {
+                return response()->json(['success' => false, 'message' => 'ID Pelanggan tidak ditemukan.'], 400);
+            }
+
+            // Update status pelanggan di database MySQL
+            DB::table('pelanggans')
+                ->where('id', $pelanggan_id)
+                ->update([
+                    'status_ruangan' => $status_ruangan,
+                    'updated_at' => now()
+                ]);
+
+            return response()->json([
+                'success' => true, 
+                'message' => 'Status ruangan berhasil diubah menjadi ' . $status_ruangan
+            ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }

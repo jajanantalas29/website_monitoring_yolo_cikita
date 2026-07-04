@@ -1,0 +1,523 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WebServer.h>
+#include <ArduinoOTA.h>
+#include <Preferences.h>
+#include <Update.h>
+
+Preferences prefs;
+
+String cfg_ssid = "MUSEUM SENI";
+String cfg_password = "baksomalang";
+String cfg_staticIP = "10.109.1.4";
+String cfg_gateway = "10.109.1.1";
+String cfg_subnet = "255.255.255.240";
+String cfg_dns1 = "8.8.8.8";
+String cfg_dns2 = "8.8.4.4";
+String cfg_serverBase = "http://10.109.1.9:8001";
+String cfg_serverPing = "http://10.109.1.9:8001/";
+String cfg_serverTrigger = "http://10.109.1.9:8001/trigger1";
+String cfg_otaPassword = "museum2025";
+int cfg_violationDist = 20;
+int cfg_violationDelay = 5000;
+int cfg_loopDelay = 100;
+
+const int trigPin = 26;
+const int echoPin = 27;
+const int ledPin = 4;
+const int buzzerPin = 18;
+
+long duration;
+int distance_cm;
+unsigned long lastViolationTime = 0;
+bool serverConnected = false;
+
+WebServer server(80);
+
+// ===== BUZZER AKTIF: beep pakai digitalWrite =====
+void beep(int t, int d) {
+    for (int i = 0; i < t; i++) {
+        digitalWrite(buzzerPin, HIGH);
+        delay(d);
+        digitalWrite(buzzerPin, LOW);
+        delay(d);
+    }
+}
+
+//=====POLA REL KERETA (non-blocking)=====//
+// ON-100ms, OFF-100ms, ON-100ms, OFF-600ms, repeat
+const int TRAIN_PATTERN[] = {100, 100, 100, 600};
+const int TRAIN_STEPS = 4;
+int buzzerStep = 0;
+unsigned long buzzerLastMs = 0;
+bool buzzerActive = false;
+
+void buzzerTrainUpdate() {
+    if (!buzzerActive) {
+        digitalWrite(buzzerPin, LOW);
+        return;
+    }
+    unsigned long now = millis();
+    if (now - buzzerLastMs >= (unsigned long)TRAIN_PATTERN[buzzerStep]) {
+        buzzerLastMs = now;
+        buzzerStep = (buzzerStep + 1) % TRAIN_STEPS;
+        digitalWrite(buzzerPin, (buzzerStep % 2 == 0) ? HIGH : LOW);
+    }
+}
+
+void buzzerStart() {
+    if (!buzzerActive) {
+        buzzerActive = true;
+        buzzerStep = 0;
+        buzzerLastMs = millis();
+        digitalWrite(buzzerPin, HIGH);
+    }
+}
+
+void buzzerStop() {
+    buzzerActive = false;
+    buzzerStep = 0;
+    digitalWrite(buzzerPin, LOW);
+}
+
+IPAddress parseIP(String s) {
+    IPAddress ip;
+    ip.fromString(s);
+    return ip;
+}
+
+void loadConfig() {
+    prefs.begin("museum", false);
+    cfg_ssid = prefs.getString("ssid", cfg_ssid);
+    cfg_password = prefs.getString("pass", cfg_password);
+    cfg_staticIP = prefs.getString("ip", cfg_staticIP);
+    cfg_gateway = prefs.getString("gw", cfg_gateway);
+    cfg_subnet = prefs.getString("sn", cfg_subnet);
+    cfg_dns1 = prefs.getString("dns1", cfg_dns1);
+    cfg_dns2 = prefs.getString("dns2", cfg_dns2);
+    cfg_serverBase = prefs.getString("srv", cfg_serverBase);
+    cfg_serverPing = prefs.getString("srvping", cfg_serverPing);
+    cfg_serverTrigger = prefs.getString("srvtrig", cfg_serverTrigger);
+    cfg_violationDist = prefs.getInt("vdist", cfg_violationDist);
+    cfg_violationDelay = prefs.getInt("vdelay", cfg_violationDelay);
+    cfg_loopDelay = prefs.getInt("loop", cfg_loopDelay);
+    prefs.end();
+}
+
+void saveConfig() {
+    prefs.begin("museum", false);
+    prefs.putString("ssid", cfg_ssid);
+    prefs.putString("pass", cfg_password);
+    prefs.putString("ip", cfg_staticIP);
+    prefs.putString("gw", cfg_gateway);
+    prefs.putString("sn", cfg_subnet);
+    prefs.putString("dns1", cfg_dns1);
+    prefs.putString("dns2", cfg_dns2);
+    prefs.putString("srv", cfg_serverBase);
+    prefs.putString("srvping", cfg_serverPing);
+    prefs.putString("srvtrig", cfg_serverTrigger);
+    prefs.putInt("vdist", cfg_violationDist);
+    prefs.putInt("vdelay", cfg_violationDelay);
+    prefs.putInt("loop", cfg_loopDelay);
+    prefs.end();
+}
+
+const char* PAGE_STYLE = R"rawliteral(
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0 }
+    :root {
+        --bg: #0a0c0f; --panel: #111418; --border: #1e2530;
+        --accent: #00e5ff; --accent2: #ff6b35;
+        --ok: #00ff88; --warn: #ffcc00; --err: #ff3b5c;
+        --text: #cdd6e0; --dim: #556678
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Rajdhani', sans-serif; min-height: 100vh; padding: 0 }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px }
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 1px solid var(--border) }
+    .header-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite }
+    @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+    .header h1 { font-size: 22px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #fff }
+    .header span { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); margin-left: auto }
+    .nav { display: flex; gap: 4px; margin-bottom: 24px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 4px }
+    .nav a { flex: 1; text-align: center; padding: 8px 4px; border-radius: 5px; color: var(--dim); font-size: 13px; font-weight: 600; letter-spacing: 1px; text-decoration: none; text-transform: uppercase; transition: .2s }
+    .nav a:hover { color: var(--text); background: #1a1f28 }
+    .nav a.active { background: var(--accent); color: #000 }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px }
+    .card-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 16px; display: flex; align-items: center; gap: 8px }
+    .card-title::before { content: ''; display: block; width: 3px; height: 14px; background: var(--accent); border-radius: 2px }
+    .field { margin-bottom: 14px }
+    .field label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); margin-bottom: 5px }
+    .field input { width: 100%; background: #0d1014; border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 13px; outline: none; transition: .2s }
+    .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0, 229, 255, .1) }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; border: none; border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; transition: .2s; text-decoration: none }
+    .btn-primary { background: var(--accent); color: #000 }
+    .btn-primary:hover { background: #33eeff; box-shadow: 0 0 12px rgba(0, 229, 255, .4) }
+    .btn-danger { background: transparent; border: 1px solid var(--err); color: var(--err) }
+    .btn-danger:hover { background: var(--err); color: #fff }
+    .btn-warn { background: transparent; border: 1px solid var(--warn); color: var(--warn) }
+    .btn-warn:hover { background: var(--warn); color: #000 }
+    .btn-sm { padding: 7px 14px; font-size: 11px }
+    .actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 1px; font-family: 'Share Tech Mono', monospace }
+    .badge-ok { background: rgba(0, 255, 136, .1); color: var(--ok); border: 1px solid rgba(0, 255, 136, .3) }
+    .badge-err { background: rgba(255, 59, 92, .1); color: var(--err); border: 1px solid rgba(255, 59, 92, .3) }
+    .badge-warn { background: rgba(255, 204, 0, .1); color: var(--warn); border: 1px solid rgba(255, 204, 0, .3) }
+    .alert { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 16px; font-family: 'Share Tech Mono', monospace }
+    .alert-ok { background: rgba(0, 255, 136, .08); border-left: 3px solid var(--ok); color: var(--ok) }
+    .alert-err { background: rgba(255, 59, 92, .08); border-left: 3px solid var(--err); color: var(--err) }
+    .drop-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 40px 20px; text-align: center; cursor: pointer; transition: .3s; position: relative; background: #0d1014 }
+    .drop-zone:hover, .drop-zone.drag { border-color: var(--accent); background: rgba(0, 229, 255, .03) }
+    .drop-zone .icon { font-size: 36px; margin-bottom: 10px; opacity: .4 }
+    .drop-zone p { color: var(--dim); font-size: 13px }
+    .drop-zone strong { color: var(--accent) }
+    .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100% }
+    .progress-wrap { margin-top: 14px; display: none }
+    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden }
+    .progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--ok)); transition: width .3s; border-radius: 3px }
+    .progress-label { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); margin-top: 6px; text-align: right }
+    .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px }
+    .stat { background: #0d1014; border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center }
+    .stat-val { font-family: 'Share Tech Mono', monospace; font-size: 22px; font-weight: 700; color: var(--accent) }
+    .stat-lbl { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); margin-top: 3px }
+    hr.sep { border: none; border-top: 1px solid var(--border); margin: 18px 0 }
+    .mono { font-family: 'Share Tech Mono', monospace }
+</style>
+)rawliteral";
+
+String buildPage(String content, String activePage) {
+    String p = "<!DOCTYPE html>\n";
+    p += "<html lang='id'>\n";
+    p += "<head>\n";
+    p += "  <meta charset='UTF-8'>\n";
+    p += "  <meta name='viewport' content='width=device-width,initial-scale=1'>\n";
+    p += "  <title>Museum Sensor Config</title>\n";
+    p += PAGE_STYLE;
+    p += "</head>\n";
+    p += "<body>\n";
+    p += "  <div class='wrap'>\n";
+    p += "    <div class='header'>\n";
+    p += "      <div class='header-dot'></div>\n";
+    p += "      <h1>Museum Sensor</h1><span class='mono'>IP: " + WiFi.localIP().toString() + "</span>\n";
+    p += "    </div>\n";
+    p += "    <nav class='nav'>\n";
+    p += "      <a href='/' class='" + String(activePage == "status" ? "active" : "") + "'>Status</a>\n";
+    p += "      <a href='/server' class='" + String(activePage == "server" ? "active" : "") + "'>Server</a>\n";
+    p += "      <a href='/sensor' class='" + String(activePage == "sensor" ? "active" : "") + "'>Sensor</a>\n";
+    p += "      <a href='/wifi' class='" + String(activePage == "wifi" ? "active" : "") + "'>WiFi</a>\n";
+    p += "      <a href='/ota' class='" + String(activePage == "ota" ? "active" : "") + "'>OTA</a>\n";
+    p += "    </nav>\n";
+    p += content;
+    p += "  </div>\n";
+    p += "</body>\n";
+    p += "</html>\n";
+    return p;
+}
+
+void handleRoot() {
+    String c = "";
+    c += "<div class='stat-grid'>";
+    c += "  <div class='stat'>";
+    c += "    <div class='stat-val'>" + String(distance_cm) + "</div>";
+    c += "    <div class='stat-lbl'>cm (last)</div>";
+    c += "  </div>";
+    c += "  <div class='stat'>";
+    c += "    <div class='stat-val'>" + String(cfg_violationDist) + "</div>";
+    c += "    <div class='stat-lbl'>Batas (cm)</div>";
+    c += "  </div>";
+    c += "  <div class='stat'>";
+    c += "    <div class='stat-val'>" + String(cfg_loopDelay) + "</div>";
+    c += "    <div class='stat-lbl'>Loop (ms)</div>";
+    c += "  </div>";
+    c += "</div>";
+    c += "<div class='card'>";
+    c += "  <div class='card-title'>System Status</div>";
+    c += "  <table style='width:100%;border-collapse:collapse'>";
+    
+    auto row = [](String k, String v, String badge) {
+        return "<tr>\n"
+               "  <td style='padding:8px 0;color:#556678;font-size:12px;letter-spacing:1px;text-transform:uppercase'>" + k + "</td>\n"
+               "  <td style='padding:8px 0;text-align:right'>" + (badge.length() ? badge : "<span class='mono'>" + v + "</span>") + "</td>\n"
+               "</tr>\n"
+               "<tr>\n"
+               "  <td colspan='2' style='border-top:1px solid #1e2530'></td>\n"
+               "</tr>\n";
+    };
+    
+    String ws = (WiFi.status() == WL_CONNECTED) ? "CONNECTED" : "DISCONNECTED";
+    String ss = serverConnected ? "ONLINE" : "OFFLINE";
+    
+    c += row("WiFi", ws, "<span class='badge " + String(WiFi.status() == WL_CONNECTED ? "badge-ok" : "badge-err") + "'>" + ws + "</span>");
+    c += row("Server", ss, "<span class='badge " + String(serverConnected ? "badge-ok" : "badge-err") + "'>" + ss + "</span>");
+    c += row("IP Address", WiFi.localIP().toString(), "");
+    c += row("RSSI", String(WiFi.RSSI()) + " dBm", "");
+    c += row("Uptime", String(millis() / 1000) + " detik", "");
+    c += row("Violation Delay", String(cfg_violationDelay / 1000.0, 1) + " detik", "");
+    
+    c += "  </table>";
+    c += "</div>";
+    c += "<div class='actions'><a href='/ping' class='btn btn-warn btn-sm'>\xF0\x9F\x94\x97 Test Ping</a><a href='/restart' class='btn btn-danger btn-sm' onclick='return confirm(\"Yakin restart?\")'>\xF0\x9F\x94\x84 Restart</a></div>";
+    
+    server.send(200, "text/html", buildPage(c, "status"));
+}
+
+void handleServer() {
+    String msg = "";
+    if (server.method() == HTTP_POST) {
+        cfg_serverBase = server.arg("srv");
+        cfg_serverPing = server.arg("ping");
+        cfg_serverTrigger = server.arg("trigger");
+        saveConfig();
+        msg = "<div class='alert alert-ok'>\xE2\x9C\x93 Konfigurasi server disimpan.</div>";
+    }
+    String c = msg + "<div class='card'>";
+    c += "  <div class='card-title'>Konfigurasi Server</div>";
+    c += "  <form method='POST'>";
+    c += "    <div class='field'><label>Base URL</label><input name='srv' value='" + cfg_serverBase + "'></div>";
+    c += "    <hr class='sep'>";
+    c += "    <div class='field'><label>URL Ping</label><input name='ping' value='" + cfg_serverPing + "'></div>";
+    c += "    <div class='field'><label>URL Trigger</label><input name='trigger' value='" + cfg_serverTrigger + "'></div>";
+    c += "    <div class='actions'><button class='btn btn-primary'>\xF0\x9F\x92\xBE Simpan</button><a href='/ping' class='btn btn-warn'>\xF0\x9F\x94\x97 Test Ping</a></div>";
+    c += "  </form>";
+    c += "</div>";
+    c += R"rawliteral(
+<script>
+    const b = document.querySelector('input[name="srv"]'), p = document.querySelector('input[name="ping"]'), t = document.querySelector('input[name="trigger"]');
+    b.addEventListener('input', function () { const v = this.value.replace(/\/+$/, ''); p.value = v + '/'; t.value = v + '/trigger1'; });
+</script>
+)rawliteral";
+    server.send(200, "text/html", buildPage(c, "server"));
+}
+
+void handleSensor() {
+    String msg = "";
+    if (server.method() == HTTP_POST) {
+        cfg_violationDist = server.arg("vdist").toInt();
+        cfg_violationDelay = server.arg("vdelay").toInt();
+        cfg_loopDelay = server.arg("loop").toInt();
+        saveConfig();
+        msg = "<div class='alert alert-ok'>\xE2\x9C\x93 Konfigurasi sensor disimpan.</div>";
+    }
+    String c = msg + "<div class='card'>";
+    c += "  <div class='card-title'>Konfigurasi Sensor</div>";
+    c += "  <form method='POST'>";
+    c += "    <div class='field'><label>Jarak Pelanggaran (cm)</label><input type='number' name='vdist' value='" + String(cfg_violationDist) + "' min='1' max='400'></div>";
+    c += "    <div class='field'><label>Violation Delay (ms)</label><input type='number' name='vdelay' value='" + String(cfg_violationDelay) + "' min='500' step='500'></div>";
+    c += "    <div class='field'><label>Loop Delay (ms)</label><input type='number' name='loop' value='" + String(cfg_loopDelay) + "' min='50' max='5000' step='50'></div>";
+    c += "    <div class='actions'><button class='btn btn-primary'>\xF0\x9F\x92\xBE Simpan</button></div>";
+    c += "  </form>";
+    c += "</div>";
+    server.send(200, "text/html", buildPage(c, "sensor"));
+}
+
+void handleWifi() {
+    String msg = "";
+    if (server.method() == HTTP_POST) {
+        cfg_ssid = server.arg("ssid");
+        cfg_password = server.arg("pass");
+        cfg_staticIP = server.arg("ip");
+        cfg_gateway = server.arg("gw");
+        cfg_subnet = server.arg("sn");
+        cfg_dns1 = server.arg("dns1");
+        cfg_dns2 = server.arg("dns2");
+        saveConfig();
+        msg = "<div class='alert alert-ok'>\xE2\x9C\x93 WiFi config disimpan. Restart untuk menerapkan.</div>";
+    }
+    String c = msg + "<div class='card'>";
+    c += "  <div class='card-title'>Konfigurasi WiFi</div>";
+    c += "  <form method='POST'>";
+    c += "    <div class='row2'>";
+    c += "      <div class='field'><label>SSID</label><input name='ssid' value='" + cfg_ssid + "'></div>";
+    c += "      <div class='field'><label>Password</label><input name='pass' type='password' value='" + cfg_password + "'></div>";
+    c += "    </div>";
+    c += "    <div class='row2'>";
+    c += "      <div class='field'><label>Static IP</label><input name='ip' value='" + cfg_staticIP + "'></div>";
+    c += "      <div class='field'><label>Gateway</label><input name='gw' value='" + cfg_gateway + "'></div>";
+    c += "    </div>";
+    c += "    <div class='row2'>";
+    c += "      <div class='field'><label>Subnet</label><input name='sn' value='" + cfg_subnet + "'></div>";
+    c += "      <div class='field'><label>DNS 1</label><input name='dns1' value='" + cfg_dns1 + "'></div>";
+    c += "    </div>";
+    c += "    <div class='field'><label>DNS 2</label><input name='dns2' value='" + cfg_dns2 + "'></div>";
+    c += "    <div class='actions'><button class='btn btn-primary'>\xF0\x9F\x92\xBE Simpan</button></div>";
+    c += "  </form>";
+    c += "</div>";
+    server.send(200, "text/html", buildPage(c, "wifi"));
+}
+
+void handlePing() {
+    String msg;
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        http.begin(cfg_serverPing);
+        int code = http.GET();
+        if (code > 0) {
+            serverConnected = true;
+            msg = "<div class='alert alert-ok'>\xE2\x9C\x93 Server merespons HTTP " + String(code) + "</div>";
+        } else {
+            serverConnected = false;
+            msg = "<div class='alert alert-err'>\xE2\x9C\x97 Gagal terhubung ke server</div>";
+        }
+        http.end();
+    } else {
+        msg = "<div class='alert alert-err'>\xE2\x9C\x97 WiFi tidak terhubung</div>";
+    }
+    msg += "<div class='actions'><a href='/server' class='btn btn-primary btn-sm'>← Kembali</a></div>";
+    server.send(200, "text/html", buildPage(msg, "server"));
+}
+
+void handleRestart() {
+    server.send(200, "text/html", buildPage("<div class='alert alert-ok'>\xE2\x9C\x93 Restarting...</div>", "status"));
+    delay(1000);
+    ESP.restart();
+}
+
+void handleOtaPage() {
+    String c = "<div class='card'>";
+    c += "  <div class='card-title'>OTA Firmware Update</div>";
+    c += R"rawliteral(
+    <div class='drop-zone' id='dz'>
+        <input type='file' accept='.bin' onchange='go(this.files[0])'>
+        <div class='icon'>📦</div>
+        <p>Drag &amp; drop <strong>.bin</strong> atau klik pilih file</p>
+        <p id='fn' style='margin-top:10px;font-size:12px;color:#00e5ff;display:none'></p>
+    </div>
+    <div class='progress-wrap' id='pw'>
+        <div class='progress-bar'>
+            <div class='progress-fill' id='pf'></div>
+        </div>
+        <div class='progress-label' id='pl'>0%</div>
+    </div>
+    <div id='om' style='margin-top:14px'></div>
+    <script>
+        const dz = document.getElementById('dz');
+        dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+        dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+        dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); const f = e.dataTransfer.files[0]; if (f && f.name.endsWith('.bin')) go(f); else msg('⚠ Hanya .bin', 'warn'); });
+        function go(file) {
+            if (!file) return;
+            document.getElementById('fn').textContent = '📄 ' + file.name; document.getElementById('fn').style.display = 'block';
+            document.getElementById('pw').style.display = 'block';
+            const xhr = new XMLHttpRequest(); xhr.open('POST', '/ota/upload', true); xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+            xhr.upload.onprogress = e => { if (e.lengthComputable) { const p = Math.round(e.loaded / e.total * 100); document.getElementById('pf').style.width = p + '%'; document.getElementById('pl').textContent = p + '%'; } };
+            xhr.onload = () => { if (xhr.status === 200) { msg('✓ Berhasil! Restart dalam 3 detik...', 'ok'); document.getElementById('pf').style.background = 'var(--ok)'; } else msg('✗ Gagal: ' + xhr.responseText, 'err'); };
+            xhr.onerror = () => msg('✗ Koneksi terputus', 'err'); xhr.send(file);
+        }
+        function msg(t, type) { const e = document.getElementById('om'); const c = type === 'ok' ? 'alert-ok' : type === 'warn' ? 'badge-warn' : 'alert-err'; e.innerHTML = "<div class='alert " + c + "'>" + t + "</div>"; }
+    </script>
+)rawliteral";
+    c += "</div>";
+    server.send(200, "text/html", buildPage(c, "ota"));
+}
+
+void handleOtaUpload() {
+    HTTPUpload& u = server.upload();
+    if (u.status == UPLOAD_FILE_START) {
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN)) Update.printError(Serial);
+    } else if (u.status == UPLOAD_FILE_WRITE) {
+        if (Update.write(u.buf, u.currentSize) != u.currentSize) Update.printError(Serial);
+    } else if (u.status == UPLOAD_FILE_END) {
+        if (Update.end(true)) {
+            server.send(200, "text/plain", "OK");
+            delay(1000);
+            ESP.restart();
+        } else {
+            server.send(500, "text/plain", "OTA FAILED");
+            Update.printError(Serial);
+        }
+    }
+}
+
+void setupOTA() {
+    ArduinoOTA.setHostname("museum-esp32");
+    ArduinoOTA.setPassword(cfg_otaPassword.c_str());
+    ArduinoOTA.onStart([]() { digitalWrite(ledPin, HIGH); });
+    ArduinoOTA.onEnd([]() { beep(3, 100); });
+    ArduinoOTA.begin();
+}
+
+void setup() {
+    Serial.begin(9600);
+    pinMode(trigPin, OUTPUT);
+    pinMode(echoPin, INPUT);
+    pinMode(ledPin, OUTPUT);
+    pinMode(buzzerPin, OUTPUT);
+    
+    digitalWrite(buzzerPin, LOW);
+    
+    loadConfig();
+    WiFi.config(parseIP(cfg_staticIP), parseIP(cfg_gateway), parseIP(cfg_subnet));
+    WiFi.begin(cfg_ssid.c_str(), cfg_password.c_str());
+    
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("\nConnected: " + WiFi.localIP().toString());
+    
+    setupOTA();
+    
+    server.on("/", HTTP_GET, handleRoot);
+    server.on("/server", HTTP_GET, handleServer);
+    server.on("/server", HTTP_POST, handleServer);
+    server.on("/sensor", HTTP_GET, handleSensor);
+    server.on("/sensor", HTTP_POST, handleSensor);
+    server.on("/wifi", HTTP_GET, handleWifi);
+    server.on("/wifi", HTTP_POST, handleWifi);
+    server.on("/ping", HTTP_GET, handlePing);
+    server.on("/restart", HTTP_GET, handleRestart);
+    server.on("/ota", HTTP_GET, handleOtaPage);
+    server.on("/ota/upload", HTTP_POST, [](){}, handleOtaUpload);
+    server.begin();
+    
+    HTTPClient http;
+    http.begin(cfg_serverPing);
+    if (http.GET() > 0) {
+        serverConnected = true;
+        beep(2, 200);
+    }
+    http.end();
+}
+
+void loop() {
+    ArduinoOTA.handle();
+    server.handleClient();
+    
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+    
+    // Add timeout so it doesn't block forever if no echo
+    duration = pulseIn(echoPin, HIGH, 30000); 
+    
+    if (duration == 0) {
+        distance_cm = 999; // out of range
+    } else {
+        distance_cm = duration * 0.034 / 2;
+    }
+    
+    Serial.println(distance_cm);
+    
+    if (distance_cm > 0 && distance_cm <= cfg_violationDist) {
+        digitalWrite(ledPin, HIGH);
+        buzzerStart();
+        
+        if (serverConnected && millis() - lastViolationTime >= (unsigned long)cfg_violationDelay) {
+            HTTPClient http;
+            http.begin(cfg_serverTrigger);
+            int code = http.GET();
+            Serial.println(code > 0 ? "TRIGGER OK" : "TRIGGER FAIL");
+            http.end();
+            lastViolationTime = millis();
+        }
+    } else {
+        digitalWrite(ledPin, LOW);
+        buzzerStop();
+    }
+    
+    buzzerTrainUpdate();
+    delay(cfg_loopDelay);
+}
