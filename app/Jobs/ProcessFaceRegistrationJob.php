@@ -80,9 +80,16 @@ class ProcessFaceRegistrationJob implements ShouldQueue
                 return;
             }
 
+            $errorMessage = 'AI gagal mendeteksi wajah.';
+            if (!$response->successful()) {
+                $errorMessage = 'Error Domain HTTP ' . $response->status() . ': ' . Str::limit(strip_tags($response->body()), 150);
+            } elseif (isset($data['message'])) {
+                $errorMessage = $data['message'];
+            }
+
             $pelanggan->update([
                 'status_pendaftaran' => 'gagal',
-                'pesan_error' => $data['message'] ?? 'AI gagal mendeteksi wajah.',
+                'pesan_error' => $errorMessage,
             ]);
         } catch (\Exception $e) {
             Log::error('Gagal Proses AI Pendaftaran: ' . $e->getMessage());
