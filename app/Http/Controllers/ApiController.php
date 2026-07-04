@@ -63,28 +63,41 @@ class ApiController extends Controller
     }
 
     // 3. Endpoint untuk mengubah status ruangan (Node 2 Pintu)
+    // 3. Endpoint untuk mengubah status ruangan (Node 2 Pintu)
     public function updateAccessStatus(Request $request)
     {
         try {
             $pelanggan_id = $request->pelanggan_id;
-            $status_ruangan = $request->status_ruangan;
 
             if (!$pelanggan_id) {
                 return response()->json(['success' => false, 'message' => 'ID Pelanggan tidak ditemukan.'], 400);
             }
 
-            // Update status pelanggan di database MySQL
+            // 1. Cek status pelanggan saat ini di database MySQL
+            $pelanggan = DB::table('pelanggans')->where('id', $pelanggan_id)->first();
+            
+            if (!$pelanggan) {
+                return response()->json(['success' => false, 'message' => 'Data pelanggan tidak ditemukan.'], 404);
+            }
+
+            // 2. Logika Toggle (Balik Status)
+            // Jika statusnya 'di_luar', maka ubah jadi 'di_dalam'. Sebaliknya jika 'di_dalam', ubah jadi 'di_luar'.
+            $status_baru = ($pelanggan->status_ruangan === 'di_luar') ? 'di_dalam' : 'di_luar';
+
+            // 3. Update status terbaru ke database
             DB::table('pelanggans')
                 ->where('id', $pelanggan_id)
                 ->update([
-                    'status_ruangan' => $status_ruangan,
+                    'status_ruangan' => $status_baru,
                     'updated_at' => now()
                 ]);
 
             return response()->json([
                 'success' => true, 
-                'message' => 'Status ruangan berhasil diubah menjadi ' . $status_ruangan
+                'message' => 'Status ruangan berhasil diubah menjadi ' . $status_baru,
+                'status_sekarang' => $status_baru
             ]);
+            
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
