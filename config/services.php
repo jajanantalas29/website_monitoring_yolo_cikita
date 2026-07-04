@@ -32,7 +32,7 @@ return [
     ],
 
     'face_ai' => [
-        'register_url' => env('FACE_AI_REGISTER_URL', 'http://192.168.18.12:8001/api/register-face'),
+        'register_url' => env('FACE_AI_REGISTER_URL', 'https://ai-cikita.rrlabs.web.id/api/register-face'),
     ],
 
 ];
