@@ -64,3 +64,4 @@ Route::middleware([CekAdmin::class])->group(function () {
 // --- JALUR TIKUS UNTUK AI PYTHON ---
 Route::get('/api/get-embeddings', [App\Http\Controllers\ApiController::class, 'getEmbeddings']);
 Route::post('/api/save-violation', [App\Http\Controllers\ApiController::class, 'saveViolation']);
+Route::post('/api/update-access-status', [App\Http\Controllers\ApiController::class, 'updateAccessStatus']);
