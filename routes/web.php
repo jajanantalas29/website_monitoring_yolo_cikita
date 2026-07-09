@@ -28,6 +28,9 @@ Route::get('/pendaftaran/kamera-mendongak', function () {
     return view('pendaftaran.kamera-mendongak'); 
 })->name('pendaftaran.kamera-mendongak');
 Route::get('/pendaftaran/kamera-menunduk', function () { return view('pendaftaran.kamera-menunduk'); })->name('pendaftaran.kamera-menunduk');
+Route::get('/pendaftaran/tiket', function () {
+    return view('pendaftaran.tiket');
+})->name('pendaftaran.tiket');
 
 // --- AUTHENTICATION ---
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');

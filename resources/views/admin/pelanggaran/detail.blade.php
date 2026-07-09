@@ -3,10 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    @vite(['resources/js/app.js', 'resources/css/app.css'])
     <title>Detail Pelanggaran - Sistem Deteksi</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    @vite('resources/css/app.css')
+    <!-- @vite('resources/css/app.css') -->
     <style>body { font-family: 'Inter', sans-serif; }</style>
+
+    <script type="text/javascript"
+            src="https://app.sandbox.midtrans.com/snap/snap.js"
+            data-client-key="{{ env('MIDTRANS_CLIENT_KEY') }}"></script>
 </head>
 <body class="bg-white h-screen flex overflow-hidden relative">
 
@@ -107,8 +113,21 @@
                                         Pelanggaran ke-{{ $jumlahPelanggaran }}
                                     </span>
                                 </div>
-                            </div>
+                                
+                                <button id="pay-button" 
+                                        data-id="{{ $pelanggaran->id }}" 
+                                        data-denda="{{ $denda ?? 0 }}" 
+                                        data-nama="{{ $pelanggaran->nama ?? 'Anonim' }}" 
+                                        data-telepon="{{ $pelanggaran->nomor_telepon ?? '00000000' }}"
+                                        class="mt-3 w-full sm:w-auto px-6 py-2.5 bg-[#0055b8] hover:bg-[#004291] text-white font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                    </svg>
+                                    Bayar Denda Sekarang
+                                </button>
+                                </div>
                         @endif
+                        
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Sumber Kamera</label>
                             <div class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 font-medium flex items-center">
@@ -122,6 +141,54 @@
                                 @endif
                             </div>
                         </div>
+
+                        @if(isset($pelanggaran->similarity_score) && !is_null($pelanggaran->similarity_score))
+                        @php
+                            $simPercent = round($pelanggaran->similarity_score * 100, 1);
+                            $simColor = $simPercent >= 60 ? 'bg-green-100 text-green-800 border-green-300' : ($simPercent >= 40 ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-red-100 text-red-800 border-red-300');
+                        @endphp
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Akurasi Pengenalan AI</label>
+                            <div class="w-full px-4 py-3 rounded-lg border {{ $simColor }} font-bold flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                <div class="flex items-center text-base sm:text-lg">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                    </svg>
+                                    Cosine Similarity: {{ $simPercent }}%
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                                    @if(!is_null($pelanggaran->match_margin))
+                                        <span class="bg-white px-2 py-1 rounded border border-gray-300">Margin: {{ round($pelanggaran->match_margin, 3) }}</span>
+                                    @endif
+                                    @if($pelanggaran->lighting_condition)
+                                        <span class="bg-white px-2 py-1 rounded border border-gray-300 uppercase">Cahaya: {{ $pelanggaran->lighting_condition }}</span>
+                                    @endif
+                                    @if($pelanggaran->vote_count && $pelanggaran->total_frames)
+                                        <span class="bg-white px-2 py-1 rounded border border-gray-300">Frame: {{ $pelanggaran->vote_count }}/{{ $pelanggaran->total_frames }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        @if(!empty($topCandidates))
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Top-3 Kandidat Terdekat</label>
+                            <div class="w-full rounded-lg border border-gray-300 bg-gray-50 divide-y divide-gray-200">
+                                @foreach($topCandidates as $idx => $cand)
+                                    <div class="px-4 py-2 flex items-center justify-between">
+                                        <span class="text-sm font-medium text-gray-700">
+                                            <span class="inline-block w-6 h-6 rounded-full bg-gray-200 text-gray-700 text-xs font-bold text-center leading-6 mr-2">{{ $idx + 1 }}</span>
+                                            {{ $cand['visitor_id'] ?? 'Unknown' }}
+                                        </span>
+                                        <span class="text-sm font-bold {{ $idx === 0 ? 'text-green-700' : 'text-gray-600' }}">
+                                            {{ isset($cand['similarity']) ? round($cand['similarity'] * 100, 1) : 0 }}%
+                                        </span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+                        @endif
                         </div>
 
                     <div class="h-full flex flex-col mt-2 md:mt-0">
@@ -175,7 +242,8 @@
         </div>
     </main>
 
-    <script>
+    <!-- <script>
+        // SCRIPT SIDEBAR (Tetap Asli)
         const btn = document.getElementById('mobile-menu-btn');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('mobile-overlay');
@@ -189,6 +257,66 @@
             sidebar.classList.add('-translate-x-full');
             overlay.classList.add('hidden');
         });
-    </script>
+
+        // SCRIPT MIDTRANS PAYMENT GATEWAY
+        const payButton = document.getElementById('pay-button');
+        if (payButton) {
+            payButton.addEventListener('click', async function () {
+                // Beri efek loading saat diklik
+                const originalContent = this.innerHTML;
+                this.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memproses...';
+                this.disabled = true;
+
+                try {
+                    // Minta Token Snap dari route API
+                    const response = await fetch('/api/midtrans/get-token', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            pelanggaran_id: '{{ $pelanggaran->id }}',
+                            denda: '{{ isset($denda) ? $denda : 0 }}',
+                            nama: '{{ $pelanggaran->nama ?? "Anonim" }}',
+                            telepon: '{{ $pelanggaran->nomor_telepon ?? "00000000" }}'
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.token) {
+                        // Tampilkan Pop-up Pembayaran Midtrans
+                        window.snap.pay(data.token, {
+                            onSuccess: function(result) {
+                                alert("Pembayaran Berhasil! Denda telah lunas.");
+                                // Opsional: redirect ke halaman cetak struk / update status lunas di database
+                                window.location.reload();
+                            },
+                            onPending: function(result) {
+                                alert("Menunggu status pembayaran Anda.");
+                            },
+                            onError: function(result) {
+                                alert("Pembayaran Gagal. Silakan coba lagi.");
+                            },
+                            onClose: function() {
+                                alert("Anda menutup jendela pembayaran sebelum menyelesaikannya.");
+                            }
+                        });
+                    } else {
+                        alert('Gagal mendapatkan token: ' + (data.message || 'Error tidak diketahui'));
+                    }
+                } catch (error) {
+                    console.error('Error saat menghubungi server:', error);
+                    alert('Gagal terhubung ke sistem pembayaran.');
+                } finally {
+                    // Kembalikan tombol seperti semula jika gagal/ditutup
+                    this.innerHTML = originalContent;
+                    this.disabled = false;
+                }
+            });
+        }
+    </script> -->
+
 </body>
 </html>

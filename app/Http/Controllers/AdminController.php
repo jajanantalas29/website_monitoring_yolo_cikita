@@ -221,7 +221,6 @@ class AdminController extends Controller
 
     public function detailPelanggaran($id)
     {
-        // PENAMBAHAN 'pelanggans.foto_mendongak' PADA SELECT
         $pelanggaran = DB::table('history_pelanggarans')
             ->leftJoin('pelanggans', 'history_pelanggarans.pelanggan_id', '=', 'pelanggans.id')
             ->select('history_pelanggarans.*', 'pelanggans.nama_lengkap as nama', 'pelanggans.nomor_telepon', 'pelanggans.foto_lurus', 'pelanggans.foto_kiri', 'pelanggans.foto_kanan', 'pelanggans.foto_mulut', 'pelanggans.foto_menunduk', 'pelanggans.foto_mendongak')
@@ -229,7 +228,16 @@ class AdminController extends Controller
             ->first();
 
         if (!$pelanggaran) return redirect()->route('admin.pelanggaran')->with('error', 'Data tidak ditemukan!');
-        return view('admin.pelanggaran.detail', compact('pelanggaran'));
+
+        $topCandidates = [];
+        if (!empty($pelanggaran->top_candidates)) {
+            $decoded = json_decode($pelanggaran->top_candidates, true);
+            if (is_array($decoded)) {
+                $topCandidates = $decoded;
+            }
+        }
+
+        return view('admin.pelanggaran.detail', compact('pelanggaran', 'topCandidates'));
     }
 
     public function kartu()

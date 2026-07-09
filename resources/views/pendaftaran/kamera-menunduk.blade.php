@@ -164,7 +164,7 @@
                 
                 const msg = new SpeechSynthesisUtterance("Foto menunduk selesai.");
                 msg.lang = 'id-ID';
-                msg.onend = () => { window.location.href = "{{ route('pendaftaran.form') }}"; };
+                msg.onend = () => { window.location.href = "{{ route('pendaftaran.tiket') }}"; };
                 window.speechSynthesis.speak(msg);
             }
         }

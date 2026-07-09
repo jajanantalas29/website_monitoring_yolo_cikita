@@ -85,14 +85,21 @@
 
         <div class="flex-1 p-4 md:p-8 pt-2 overflow-y-auto">
             
+            <!-- PENAMBAHAN FITUR LIVE CCTV (RESPONSIVE) -->
+            <div class="w-full bg-[#111] border-2 border-gray-300 rounded-2xl overflow-hidden mb-6 shadow-sm relative" style="height: 450px; width: 100%;">
+                <iframe src="https://ai-cikita.rrlabs.web.id/node2-view" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" title="Live CCTV Node 2"></iframe>
+            </div>
+            <!-- AKHIR PENAMBAHAN FITUR LIVE CCTV -->
+
             <div class="border-2 border-gray-300 rounded-2xl h-full p-1 overflow-hidden shadow-sm flex flex-col bg-white">
                 <div class="w-full h-full overflow-x-auto">
-                    <table class="w-full text-left border-collapse min-w-[600px] md:min-w-full">
+                    <table class="w-full text-left border-collapse min-w-[700px] md:min-w-full">
                         <thead class="bg-white sticky top-0 z-10 border-b-2 border-gray-300">
                             <tr>
                                 <th class="p-4 text-base md:text-lg font-bold text-[#1f2937]">Nama</th>
                                 <th class="p-4 text-base md:text-lg font-bold text-[#1f2937]">Nomor Telepon</th>
                                 <th class="p-4 text-base md:text-lg font-bold text-[#1f2937]">Foto Bukti</th>
+                                <th class="p-4 text-base md:text-lg font-bold text-[#1f2937] text-center">Akurasi AI</th>
                                 <th class="p-4 text-base md:text-lg font-bold text-[#1f2937] text-center">Lainnya</th>
                             </tr>
                         </thead>
@@ -104,11 +111,11 @@
                                         {{ $p->nama ?? $p->status }}
                                     </div>
                                 </td>
-                                
+
                                 <td class="p-4 py-4 md:py-6">
                                     {{ $p->nomor_telepon ?? '-' }}
                                 </td>
-                                
+
                                 <td class="p-4 py-4 md:py-6">
                                     @if($p->gambar_bukti)
                                         <span class="text-sm text-gray-500 italic flex items-center space-x-2">
@@ -121,7 +128,26 @@
                                         <span class="text-sm text-gray-400 italic">-</span>
                                     @endif
                                 </td>
-                                
+
+                                <td class="p-4 py-4 md:py-6 text-center">
+                                    @if(!is_null($p->similarity_score))
+                                        @php
+                                            $simPercent = round($p->similarity_score * 100, 1);
+                                            $simColor = $simPercent >= 60 ? 'bg-green-100 text-green-800' : ($simPercent >= 40 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800');
+                                        @endphp
+                                        <div class="flex flex-col items-center space-y-1">
+                                            <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ $simColor }}">
+                                                {{ $simPercent }}%
+                                            </span>
+                                            @if($p->lighting_condition)
+                                                <span class="text-[10px] text-gray-500 uppercase">{{ $p->lighting_condition }}</span>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-sm text-gray-400 italic">-</span>
+                                    @endif
+                                </td>
+
                                 <td class="p-4 py-4 md:py-6 text-center">
                                     <div class="flex items-center justify-center space-x-3">
                                         <a href="{{ route('admin.pelanggaran.detail', $p->id) }}" class="text-gray-600 hover:text-black transition" title="Lihat">
@@ -145,7 +171,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="4" class="p-8 text-center text-gray-500 font-medium">Belum ada data pelanggaran.</td>
+                                <td colspan="5" class="p-8 text-center text-gray-500 font-medium">Belum ada data pelanggaran.</td>
                             </tr>
                             @endforelse
                         </tbody>
