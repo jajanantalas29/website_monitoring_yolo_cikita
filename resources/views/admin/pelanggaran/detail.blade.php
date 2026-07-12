@@ -7,7 +7,6 @@
     @vite(['resources/js/app.js', 'resources/css/app.css'])
     <title>Detail Pelanggaran - Sistem Deteksi</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- @vite('resources/css/app.css') -->
     <style>body { font-family: 'Inter', sans-serif; }</style>
 
     <script type="text/javascript"
@@ -88,43 +87,54 @@
 
                         @if(isset($pelanggaran->pelanggan_id) && $pelanggaran->pelanggan_id != null)
                             @php
-                                // Menghitung total pelanggaran orang ini berdasarkan riwayat waktu (hingga saat insiden ini)
+                                // PERBAIKAN: Hanya menghitung pelanggaran yang berstatus selain 'lunas' agar nilai denda reset setelah dibayar
                                 $jumlahPelanggaran = \Illuminate\Support\Facades\DB::table('history_pelanggarans')
                                     ->where('pelanggan_id', $pelanggaran->pelanggan_id)
-                                    ->where('waktu', '<=', $pelanggaran->waktu)
+                                    ->where('status_pembayaran', '!=', 'lunas')
                                     ->count();
                                 
-                                // Jika tidak ada (mustahil karena ini adalah halaman detailnya), fallback ke 1
                                 $jumlahPelanggaran = $jumlahPelanggaran > 0 ? $jumlahPelanggaran : 1;
                                 
-                                // Kalikan denda: Rp 50.000 per pelanggaran
-                                $denda = $jumlahPelanggaran * 50000;
+                                if ($pelanggaran->status_pembayaran === 'lunas') {
+                                    $denda = 0;
+                                } else {
+                                    $denda = $jumlahPelanggaran * 50000;
+                                }
                             @endphp
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">Denda Pelanggaran</label>
-                                <div class="w-full px-4 py-3 rounded-lg border border-red-300 bg-red-50 text-red-700 font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+                                <div class="w-full px-4 py-3 rounded-lg border {{ $pelanggaran->status_pembayaran === 'lunas' ? 'border-green-300 bg-green-50 text-green-700' : 'border-red-300 bg-red-50 text-red-700' }} font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
                                     <div class="flex items-center text-base sm:text-lg">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                         Rp {{ number_format($denda, 0, ',', '.') }}
                                     </div>
-                                    <span class="text-xs sm:text-sm font-semibold text-red-800 bg-red-200 px-3 py-1.5 rounded-full w-fit">
+                                    <span class="text-xs sm:text-sm font-semibold {{ $pelanggaran->status_pembayaran === 'lunas' ? 'text-green-800 bg-green-200' : 'text-red-800 bg-red-200' }} px-3 py-1.5 rounded-full w-fit">
                                         Pelanggaran ke-{{ $jumlahPelanggaran }}
                                     </span>
                                 </div>
                                 
-                                <button id="pay-button" 
-                                        data-id="{{ $pelanggaran->id }}" 
-                                        data-denda="{{ $denda ?? 0 }}" 
-                                        data-nama="{{ $pelanggaran->nama ?? 'Anonim' }}" 
-                                        data-telepon="{{ $pelanggaran->nomor_telepon ?? '00000000' }}"
-                                        class="mt-3 w-full sm:w-auto px-6 py-2.5 bg-[#0055b8] hover:bg-[#004291] text-white font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                    </svg>
-                                    Bayar Denda Sekarang
-                                </button>
+                                @if($pelanggaran->status_pembayaran === 'lunas')
+                                    <div class="mt-3 w-full sm:w-auto px-6 py-2.5 bg-green-100 text-green-800 font-bold rounded-lg border border-green-300 flex items-center justify-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                        </svg>
+                                        Denda Sudah Lunas
+                                    </div>
+                                @else
+                                    <button id="pay-button" 
+                                            data-pelanggan-id="{{ $pelanggaran->pelanggan_id }}"
+                                            data-denda="{{ $denda }}" 
+                                            data-nama="{{ $pelanggaran->nama ?? 'Anonim' }}" 
+                                            data-telepon="{{ $pelanggaran->nomor_telepon ?? '00000000' }}"
+                                            class="mt-3 w-full sm:w-auto px-6 py-2.5 bg-[#0055b8] hover:bg-[#004291] text-white font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                        </svg>
+                                        Bayar Denda Sekarang
+                                    </button>
+                                @endif
                                 </div>
                         @endif
                         
@@ -242,8 +252,7 @@
         </div>
     </main>
 
-    <!-- <script>
-        // SCRIPT SIDEBAR (Tetap Asli)
+    <script>
         const btn = document.getElementById('mobile-menu-btn');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('mobile-overlay');
@@ -258,65 +267,147 @@
             overlay.classList.add('hidden');
         });
 
-        // SCRIPT MIDTRANS PAYMENT GATEWAY
         const payButton = document.getElementById('pay-button');
+        let isProcessing = false; 
+
         if (payButton) {
             payButton.addEventListener('click', async function () {
-                // Beri efek loading saat diklik
+                if (isProcessing) return; 
+                isProcessing = true; 
+                
                 const originalContent = this.innerHTML;
                 this.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memproses...';
                 this.disabled = true;
 
+                const pelangganIdValue = this.getAttribute('data-pelanggan-id');
+                const dendaValue = this.getAttribute('data-denda');
+                const namaValue = this.getAttribute('data-nama');
+                const teleponValue = this.getAttribute('data-telepon');
+
+                if (parseInt(dendaValue) <= 0) {
+                    alert("Nominal denda tidak valid atau sudah lunas.");
+                    isProcessing = false;
+                    this.innerHTML = originalContent;
+                    this.disabled = false;
+                    return;
+                }
+
+                let snapToken = null; 
+
                 try {
-                    // Minta Token Snap dari route API
                     const response = await fetch('/api/midtrans/get-token', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Accept': 'application/json'
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                         },
                         body: JSON.stringify({
-                            pelanggaran_id: '{{ $pelanggaran->id }}',
-                            denda: '{{ isset($denda) ? $denda : 0 }}',
-                            nama: '{{ $pelanggaran->nama ?? "Anonim" }}',
-                            telepon: '{{ $pelanggaran->nomor_telepon ?? "00000000" }}'
+                            pelanggan_id: pelangganIdValue,
+                            denda: dendaValue,
+                            nama: namaValue,
+                            telepon: teleponValue
                         })
                     });
 
                     const data = await response.json();
 
                     if (data.token) {
-                        // Tampilkan Pop-up Pembayaran Midtrans
-                        window.snap.pay(data.token, {
-                            onSuccess: function(result) {
-                                alert("Pembayaran Berhasil! Denda telah lunas.");
-                                // Opsional: redirect ke halaman cetak struk / update status lunas di database
-                                window.location.reload();
-                            },
-                            onPending: function(result) {
-                                alert("Menunggu status pembayaran Anda.");
-                            },
-                            onError: function(result) {
-                                alert("Pembayaran Gagal. Silakan coba lagi.");
-                            },
-                            onClose: function() {
-                                alert("Anda menutup jendela pembayaran sebelum menyelesaikannya.");
-                            }
-                        });
+                        snapToken = data.token; 
                     } else {
+                        isProcessing = false;
+                        this.innerHTML = originalContent;
+                        this.disabled = false;
                         alert('Gagal mendapatkan token: ' + (data.message || 'Error tidak diketahui'));
+                        return; 
                     }
                 } catch (error) {
-                    console.error('Error saat menghubungi server:', error);
-                    alert('Gagal terhubung ke sistem pembayaran.');
-                } finally {
-                    // Kembalikan tombol seperti semula jika gagal/ditutup
+                    isProcessing = false;
                     this.innerHTML = originalContent;
                     this.disabled = false;
+                    alert('Gagal terhubung ke sistem pembayaran.');
+                    return; 
+                }
+
+                if (snapToken) {
+                    try {
+                        window.snap.pay(snapToken, {
+                            onSuccess: function(result) {
+                                const payBtn = document.getElementById('pay-button');
+                                if(payBtn) payBtn.innerHTML = 'Memperbarui database...';
+
+                                fetch('/api/midtrans/update-lunas', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                    },
+                                    body: JSON.stringify({
+                                        order_id: result.order_id
+                                    })
+                                })
+                                .then(response => response.json())
+                                .then(updateData => {
+                                    alert("Pembayaran Berhasil! Denda telah lunas.");
+                                    window.location.reload(); 
+                                })
+                                .catch(error => {
+                                    console.error('Error update DB:', error);
+                                    alert("Pembayaran berhasil, tapi gagal update database. Lapor admin.");
+                                    isProcessing = false;
+                                    payButton.innerHTML = originalContent;
+                                    payButton.disabled = false;
+                                });
+                            },
+                            onPending: function(result) {
+                                const payBtn = document.getElementById('pay-button');
+                                if(payBtn) payBtn.innerHTML = 'Memperbarui database (Demo VA)...';
+
+                                fetch('/api/midtrans/update-lunas', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                    },
+                                    body: JSON.stringify({
+                                        order_id: result.order_id
+                                    })
+                                })
+                                .then(response => response.json())
+                                .then(updateData => {
+                                    alert("VA Dibuat! (Simulasi Demo: Denda langsung dianggap Lunas).");
+                                    window.location.reload(); 
+                                })
+                                .catch(error => {
+                                    console.error('Error update DB:', error);
+                                    alert("Gagal update database.");
+                                    isProcessing = false;
+                                    payButton.innerHTML = originalContent;
+                                    payButton.disabled = false;
+                                });
+                            },
+                            onError: function(result) {
+                                isProcessing = false;
+                                payButton.innerHTML = originalContent;
+                                payButton.disabled = false;
+                                alert("Pembayaran Gagal.");
+                            },
+                            onClose: function() {
+                                isProcessing = false;
+                                payButton.innerHTML = originalContent;
+                                payButton.disabled = false;
+                                alert("Pembayaran dibatalkan.");
+                            }
+                        });
+                    } catch (snapError) {
+                        console.warn('Peringatan internal Midtrans (CSP):', snapError);
+                    }
                 }
             });
         }
-    </script> -->
+    </script>
 
 </body>
 </html>

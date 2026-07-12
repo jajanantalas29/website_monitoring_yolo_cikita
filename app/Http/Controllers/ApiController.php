@@ -59,6 +59,9 @@ class ApiController extends Controller
             $pelanggan = DB::table('pelanggans')
                 ->join('kartus', 'pelanggans.id', '=', 'kartus.pelanggan_id')
                 ->whereNotNull('pelanggans.embedding')
+                // --- PERBAIKAN: Hanya kirim data pelanggan yang sedang di dalam ruangan ---
+                ->where('pelanggans.status_ruangan', 'di_dalam') 
+                // -------------------------------------------------------------------------
                 ->select(
                     'pelanggans.id',
                     'pelanggans.nama_lengkap',
@@ -175,20 +178,27 @@ class ApiController extends Controller
 
         if (!$uid) {
             $this->logDoorAccess(null, $uidHex, 'masuk', 'denied', null, 'invalid_uid');
-            return response()->json(['status' => 'denied', 'reason' => 'invalid_uid'], 200);
+            return response()->json(['status' => 'denied', 'message' => 'GAGAL'], 200);
         }
 
-        // Cek UID di kartus + ambil embedding dari pelanggans (1 query join)
+        // PERBAIKAN: Tambahkan 'pelanggans.status_ruangan' ke dalam select
         $kartu = DB::table('kartus')
             ->join('pelanggans', 'kartus.pelanggan_id', '=', 'pelanggans.id')
             ->where('kartus.uid_kartu', $uid)
-            ->select('kartus.pelanggan_id', 'pelanggans.nama_lengkap', 'pelanggans.embedding')
+            ->select('kartus.pelanggan_id', 'pelanggans.nama_lengkap', 'pelanggans.embedding', 'pelanggans.status_ruangan')
             ->first();
 
         if (!$kartu) {
             $this->logDoorAccess(null, $uid, 'masuk', 'denied', null, 'uid_not_registered');
-            return response()->json(['status' => 'denied', 'reason' => 'uid_not_registered'], 200);
+            return response()->json(['status' => 'denied', 'message' => 'GAGAL'], 200);
         }
+
+        // --- PERBAIKAN: Cek jika pelanggan sudah di dalam ---
+        if ($kartu->status_ruangan === 'di_dalam') {
+            $this->logDoorAccess($kartu->pelanggan_id, $uid, 'masuk', 'denied', null, 'already_inside');
+            return response()->json(['status' => 'denied', 'message' => 'GAGAL: Sudah di dalam'], 200);
+        }
+        // ----------------------------------------------------
 
         $pelanggan_id = $kartu->pelanggan_id;
         $nama_lengkap = $kartu->nama_lengkap;
@@ -196,10 +206,9 @@ class ApiController extends Controller
 
         if (!$embedding) {
             $this->logDoorAccess($pelanggan_id, $uid, 'masuk', 'denied', null, 'no_embedding');
-            return response()->json(['status' => 'denied', 'reason' => 'no_embedding'], 200);
+            return response()->json(['status' => 'denied', 'message' => 'GAGAL'], 200);
         }
 
-        // POST ke AI: pass embedding langsung agar AI tidak perlu callback ke Laravel
         $aiUrl = 'http://10.109.1.6:8001/trigger2';
 
         try {
@@ -213,7 +222,7 @@ class ApiController extends Controller
             $aiData = $response->json() ?? [];
         } catch (\Exception $e) {
             $this->logDoorAccess($pelanggan_id, $uid, 'masuk', 'denied', null, 'ai_server_error');
-            return response()->json(['status' => 'denied', 'reason' => 'ai_server_error'], 200);
+            return response()->json(['status' => 'denied', 'message' => 'GAGAL'], 200);
         }
 
         $access = $aiData['access'] ?? 'denied';
@@ -229,19 +238,21 @@ class ApiController extends Controller
 
                 $this->logDoorAccess($pelanggan_id, $uid, 'masuk', 'granted', $sim, null);
 
+                // PERBAIKAN: Sisipkan kata 'SUKSES' agar dibaca oleh ESP32
                 return response()->json([
                     'status' => 'granted',
                     'similarity' => $sim,
+                    'message' => 'SUKSES' 
                 ], 200);
             } else {
                 $this->logDoorAccess($pelanggan_id, $uid, 'masuk', 'denied', $sim, 'pelanggan_mismatch');
-                return response()->json(['status' => 'denied', 'reason' => 'pelanggan_mismatch'], 200);
+                return response()->json(['status' => 'denied', 'message' => 'GAGAL'], 200);
             }
         } else {
             $reason = $aiData['reason'] ?? 'face_verification_failed';
             $sim = $aiData['similarity'] ?? null;
             $this->logDoorAccess($pelanggan_id, $uid, 'masuk', 'denied', $sim, $reason);
-            return response()->json(['status' => 'denied', 'reason' => $reason], 200);
+            return response()->json(['status' => 'denied', 'message' => 'GAGAL'], 200);
         }
     }
 
@@ -270,7 +281,19 @@ class ApiController extends Controller
 
         $pelanggan_id = $kartu->pelanggan_id;
 
-        // Update status_ruangan langsung (no AI verifikasi)
+        // KUNCI PERBAIKAN: Cek apakah pelanggan ini memiliki denda yang belum dibayar
+        $adaDenda = DB::table('history_pelanggarans')
+            ->where('pelanggan_id', $pelanggan_id)
+            ->where('status_pembayaran', '!=', 'lunas') // Memblokir jika ada status selain 'lunas'
+            ->exists();
+
+        if ($adaDenda) {
+            // Catat ke log bahwa akses ditolak karena denda, dan kirim respons DENDA ke Node 2
+            $this->logDoorAccess($pelanggan_id, $uid, 'keluar', 'denied', null, 'DENDA');
+            return response()->json(['status' => 'denied', 'reason' => 'DENDA'], 200);
+        }
+
+        // Jika tidak ada denda, update status_ruangan langsung (no AI verifikasi)
         DB::table('pelanggans')
             ->where('id', $pelanggan_id)
             ->update(['status_ruangan' => 'di_luar', 'updated_at' => now()]);

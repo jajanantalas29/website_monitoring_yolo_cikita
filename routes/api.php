@@ -12,7 +12,8 @@ Route::post('/midtrans/get-token', function (Request $request) {
 
     $params = [
         'transaction_details' => [
-            'order_id' => 'DENDA-' . $request->pelanggaran_id . '-' . time(),
+            // PERBAIKAN: Diubah dari pelanggaran_id menjadi pelanggan_id
+            'order_id' => 'DENDA-' . $request->pelanggan_id . '-' . time(),
             'gross_amount' => (int) $request->denda,
         ],
         'customer_details' => [
@@ -27,6 +28,36 @@ Route::post('/midtrans/get-token', function (Request $request) {
     } catch (\Exception $e) {
         return response()->json(['message' => $e->getMessage()], 500);
     }
+});
+
+// Rute untuk menerima laporan sukses dari frontend
+Route::post('/midtrans/update-lunas', function (\Illuminate\Http\Request $request) {
+    // Midtrans akan mengembalikan order_id (contoh: DENDA-5-171829384)
+    $order_id = $request->input('order_id');
+    
+    if (!$order_id) {
+        return response()->json(['success' => false, 'message' => 'Order ID tidak ditemukan'], 400);
+    }
+
+    // Pecah string untuk mengambil ID Pelanggan (Angka di tengah)
+    $parts = explode('-', $order_id);
+    if (count($parts) >= 2) {
+        // PERBAIKAN: Mengambil ID Pelanggan
+        $pelanggan_id = $parts[1];
+
+        // PERBAIKAN: Update database menjadi lunas berdasarkan pelanggan_id
+        // Ini akan melunasi SEMUA baris pelanggaran untuk orang tersebut
+        \Illuminate\Support\Facades\DB::table('history_pelanggarans')
+            ->where('pelanggan_id', $pelanggan_id)
+            ->update([
+                'status_pembayaran' => 'lunas',
+                'updated_at' => now()
+            ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    return response()->json(['success' => false, 'message' => 'Format Order ID salah'], 400);
 });
 
 Route::post('/midtrans/tiket-token', function (\Illuminate\Http\Request $request) {

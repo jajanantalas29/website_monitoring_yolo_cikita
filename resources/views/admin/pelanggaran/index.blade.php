@@ -87,7 +87,7 @@
             
             <!-- PENAMBAHAN FITUR LIVE CCTV (RESPONSIVE) -->
             <div class="w-full bg-[#111] border-2 border-gray-300 rounded-2xl overflow-hidden mb-6 shadow-sm relative" style="height: 450px; width: 100%;">
-                <iframe src="https://ai-cikita.rrlabs.web.id/node2-view" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" title="Live CCTV Node 2"></iframe>
+                <iframe src="http://127.0.0.1:8001/node2-view" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" title="Live CCTV Node 2"></iframe>
             </div>
             <!-- AKHIR PENAMBAHAN FITUR LIVE CCTV -->
 

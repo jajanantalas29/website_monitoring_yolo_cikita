@@ -3,23 +3,23 @@
  * ESP32 Node 2 - Pintu Masuk/Keluar Museum
  * ============================================================
  * Hardware:
- *   - 2x PN532 RFID reader via TCA9548A I2C multiplexer
- *       Channel 0 = PN532_MASUK  (reader di luar pintu)
- *       Channel 1 = PN532_KELUAR (reader di dalam pintu)
- *   - Relay  GPIO13 (HIGH = selenoid buka, LOW = selenoid tutup)
- *   - Buzzer GPIO33 (passive, via ledc)
+ * - 2x PN532 RFID reader via TCA9548A I2C multiplexer
+ * Channel 0 = PN532_MASUK  (reader di luar pintu)
+ * Channel 1 = PN532_KELUAR (reader di dalam pintu)
+ * - Relay  GPIO13 (HIGH = selenoid buka, LOW = selenoid tutup)
+ * - Buzzer GPIO33 (passive, via ledc)
  *
  * Alur:
- *   Tap kartu Masuk  -> POST /api/akses-masuk  ke Laravel
- *   Tap kartu Keluar -> POST /api/akses-keluar ke Laravel
+ * Tap kartu Masuk  -> POST /api/akses-masuk  ke Laravel
+ * Tap kartu Keluar -> POST /api/akses-keluar ke Laravel
  *
  * Laravel meng-orchestrate verifikasi AI (hanya untuk masuk).
  * Laravel mengembalikan {"status":"granted"} atau {"status":"denied","reason":"..."}
  *
  * ESP32 bertindak sebagai client:
- *   granted -> selenoid HIGH 5 detik, beep sukses 2x
- *   denied  -> buzzer 5000ms, selenoid tetap LOW
- *   error   -> buzzer 5000ms, selenoid tetap LOW
+ * granted -> selenoid HIGH 5 detik, beep sukses 2x
+ * denied  -> buzzer 5000ms, selenoid tetap LOW
+ * error   -> buzzer 5000ms, selenoid tetap LOW
  * ============================================================
  */
 
@@ -82,18 +82,16 @@ Adafruit_PN532 nfc(-1, -1);
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
 
 void buzzerInit() {
-  ledcAttach(BUZZER_PIN, 2500, 8);
-  ledcWrite(BUZZER_PIN, 0);
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW); // Pastikan mati saat startup
 }
 
 void buzzerOn(uint16_t freq) {
-  ledcWriteTone(BUZZER_PIN, freq);
-  ledcWrite(BUZZER_PIN, 128);
+  digitalWrite(BUZZER_PIN, HIGH);
 }
 
 void buzzerOff() {
-  ledcWrite(BUZZER_PIN, 0);
-  ledcWriteTone(BUZZER_PIN, 0);
+  digitalWrite(BUZZER_PIN, LOW);
 }
 
 #else
@@ -107,13 +105,11 @@ void buzzerInit() {
 }
 
 void buzzerOn(uint16_t freq) {
-  ledcWriteTone(BUZZER_CHANNEL, freq);
-  ledcWrite(BUZZER_CHANNEL, 128);
+  digitalWrite(BUZZER_PIN, HIGH);
 }
 
 void buzzerOff() {
-  ledcWrite(BUZZER_CHANNEL, 0);
-  ledcWriteTone(BUZZER_CHANNEL, 0);
+  digitalWrite(BUZZER_PIN, LOW);
 }
 
 #endif
@@ -153,30 +149,30 @@ void triggerSelenoid() {
 // BUZZER SOUND
 // ====================
 void beep(uint16_t freq, uint16_t durationMs) {
-  buzzerOn(freq);
+  buzzerOn(0); // Freq diabaikan untuk buzzer aktif
   delay(durationMs);
   buzzerOff();
 }
 
 void beepReady() {
-  beep(2000, 150);
+  beep(0, 150);
   delay(100);
-  beep(2500, 150);
+  beep(0, 150);
 }
 
 void beepTap() {
-  beep(2500, 200);
+  beep(0, 200);
 }
 
 void beepSuccess() {
-  beep(2500, 200);
+  beep(0, 200);
   delay(100);
-  beep(2500, 200);
+  beep(0, 200);
 }
 
 void buzzerError() {
   Serial.println("BUZZER ERROR 5 detik");
-  buzzerOn(1000);
+  buzzerOn(0);
   delay(BUZZER_ERROR_MS);
   buzzerOff();
 }
@@ -344,7 +340,18 @@ bool checkRFID(uint8_t channel, const char *name, const char *url) {
         Serial.println("[AKSES DIKENALI] Selenoid buka 5 detik.");
         beepSuccess();
         triggerSelenoid();
-      } else {
+      } 
+      // ========================================================
+      // PERBAIKAN: Deteksi kata DENDA langsung dari raw string
+      // ========================================================
+      else if (response.indexOf("DENDA") >= 0) {
+        Serial.println("[AKSES DITOLAK] Pelanggan memiliki denda belum dibayar!");
+        buzzerOn(1000);
+        delay(5000); // Buzzer nyala 5 detik penuh
+        buzzerOff();
+      } 
+      // ========================================================
+      else {
         const char* reason = respDoc["reason"] | "unknown";
         Serial.print("[AKSES DITOLAK] Reason: ");
         Serial.println(reason);
